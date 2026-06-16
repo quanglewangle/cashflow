@@ -5,10 +5,12 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -28,6 +30,7 @@ public class ForecastFragment extends Fragment {
 
     private SwipeRefreshLayout swipeRefresh;
     private ForecastAdapter adapter;
+    private Repository repo;
 
     @Nullable
     @Override
@@ -38,6 +41,7 @@ public class ForecastFragment extends Fragment {
     @Override
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
+        repo = Repository.getInstance(requireContext());
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
@@ -46,6 +50,7 @@ public class ForecastFragment extends Fragment {
         adapter = new ForecastAdapter(new ArrayList<>(), this::openPeriod);
         recyclerView.setAdapter(adapter);
 
+        view.findViewById(R.id.fabCheckpoint).setOnClickListener(v -> showAddCheckpointDialog());
         swipeRefresh.setOnRefreshListener(this::loadForecast);
         loadForecast();
     }
@@ -63,7 +68,7 @@ public class ForecastFragment extends Fragment {
         int year = now.get(Calendar.YEAR);
         int month = now.get(Calendar.MONTH) + 1;
 
-        Repository.getInstance(requireContext()).getForecastRange(year, month, MONTHS_AHEAD,
+        repo.getForecastRange(year, month, MONTHS_AHEAD,
                 new com.quanglewangle.peter.cashflow.api.ApiService.Callback<List<ForecastSummary>>() {
                     @Override
                     public void onSuccess(List<ForecastSummary> result) {
@@ -79,5 +84,39 @@ public class ForecastFragment extends Fragment {
                         }
                     }
                 });
+    }
+
+    /** Re-anchor the forecast to a real bank balance, same habit as the spreadsheet. */
+    private void showAddCheckpointDialog() {
+        View formView = getLayoutInflater().inflate(R.layout.dialog_add_checkpoint, null);
+        EditText inputBalance = formView.findViewById(R.id.inputBalance);
+
+        Calendar now = Calendar.getInstance();
+        int year = now.get(Calendar.YEAR);
+        int month = now.get(Calendar.MONTH) + 1;
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Update balance")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    Double balance = parseDoubleOrNull(inputBalance.getText().toString());
+                    if (balance == null) {
+                        Toast.makeText(getContext(), "Enter a valid amount", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    repo.addCheckpoint(year, month, balance, this::loadForecast,
+                            error -> { if (getContext() != null) Toast.makeText(getContext(), error, Toast.LENGTH_LONG).show(); });
+                })
+                .show();
+    }
+
+    @Nullable
+    private Double parseDoubleOrNull(String s) {
+        try {
+            return Double.parseDouble(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 }

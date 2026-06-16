@@ -214,9 +214,17 @@ public class Repository {
         });
     }
 
-    // ---- forecast (online only -- computed server-side from settings + entries) ----
+    // ---- forecast (online only -- computed server-side from checkpoints + entries) ----
 
     public void getForecastRange(int year, int month, int count, ApiService.Callback<List<ForecastSummary>> callback) {
         api.getForecastRange(year, month, count, callback);
+    }
+
+    /** Re-anchors the forecast to a real bank balance you just checked. */
+    public void addCheckpoint(int periodYear, int periodMonth, double balance, Runnable onDone, ErrorCallback onError) {
+        api.addCheckpoint(periodYear, periodMonth, balance, new ApiService.Callback<Long>() {
+            @Override public void onSuccess(Long id) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
     }
 }

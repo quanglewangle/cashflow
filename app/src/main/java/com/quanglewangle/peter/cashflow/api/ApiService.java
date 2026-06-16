@@ -341,20 +341,19 @@ public class ApiService {
         return f;
     }
 
-    // ---- settings ----
+    // ---- balance checkpoints ----
+    // Re-anchors the forecast to a real bank balance, same habit as
+    // hand-correcting "brought forward" in the spreadsheet -- add a new
+    // checkpoint any time instead of trusting one fixed opening balance
+    // to stay accurate forever.
 
-    public void getSettings(Callback<JSONObject> callback) {
-        Request request = new Request.Builder().url(BASE_URL + "settings").build();
-        enqueue(request, callback);
-    }
-
-    public void putSettings(double openingBalance, int openingYear, int openingMonth, Callback<Void> callback) {
+    public void addCheckpoint(int periodYear, int periodMonth, double balance, Callback<Long> callback) {
         JSONObject body = new JSONObject();
-        set(body, "opening_balance", openingBalance);
-        set(body, "opening_year", openingYear);
-        set(body, "opening_month", openingMonth);
-        Request request = authed(new Request.Builder().url(BASE_URL + "settings").put(jsonBody(body))).build();
-        enqueue(request, voidCallback(callback));
+        set(body, "period_year", periodYear);
+        set(body, "period_month", periodMonth);
+        set(body, "balance", balance);
+        Request request = authed(new Request.Builder().url(BASE_URL + "checkpoints").post(jsonBody(body))).build();
+        enqueue(request, idCallback(callback));
     }
 
     // ---- shared callback adapters ----
