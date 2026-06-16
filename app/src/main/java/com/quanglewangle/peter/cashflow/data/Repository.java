@@ -244,4 +244,11 @@ public class Repository {
             @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
         });
     }
+
+    public void getCheckpoints(ApiService.Callback<List<BalanceCheckpoint>> callback) {
+        api.getCheckpoints(new ApiService.Callback<List<BalanceCheckpoint>>() {
+            @Override public void onSuccess(List<BalanceCheckpoint> result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
 }

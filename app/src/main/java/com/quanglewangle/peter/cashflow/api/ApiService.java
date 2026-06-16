@@ -1,5 +1,6 @@
 package com.quanglewangle.peter.cashflow.api;
 
+import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
@@ -368,6 +369,27 @@ public class ApiService {
         set(body, "balance", balance);
         Request request = authed(new Request.Builder().url(BASE_URL + "checkpoints").post(jsonBody(body))).build();
         enqueue(request, idCallback(callback));
+    }
+
+    public void getCheckpoints(Callback<List<BalanceCheckpoint>> callback) {
+        Request request = new Request.Builder().url(BASE_URL + "checkpoints").build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<BalanceCheckpoint> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) out.add(parseCheckpoint(arr.optJSONObject(i)));
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    private BalanceCheckpoint parseCheckpoint(JSONObject o) {
+        BalanceCheckpoint c = new BalanceCheckpoint();
+        c.id = o.optLong("id");
+        c.periodYear = o.optInt("period_year");
+        c.periodMonth = o.optInt("period_month");
+        c.balance = o.optDouble("balance", 0);
+        return c;
     }
 
     // ---- shared callback adapters ----
