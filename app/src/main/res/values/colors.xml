@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="colorPrimary">#FF1B5E20</color>
+    <color name="colorPrimaryVariant">#FF003D00</color>
+    <color name="colorSecondary">#FFFFA000</color>
+    <color name="colorOnPrimary">#FFFFFFFF</color>
+    <color name="colorOnSecondary">#FF000000</color>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <color name="incurred">#FF1B5E20</color>
+    <color name="planned">#FF757575</color>
+    <color name="negative">#FFC62828</color>
+</resources>
