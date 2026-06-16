@@ -44,7 +44,8 @@ public class BalanceCheckpointAdapter extends RecyclerView.Adapter<BalanceCheckp
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         BalanceCheckpoint c = items.get(position);
         String month = new DateFormatSymbols(Locale.UK).getMonths()[c.periodMonth - 1];
-        holder.period.setText(month + " " + c.periodYear);
+        String day = c.periodDay > 1 || true ? Util.ordinal(c.periodDay) + " " : "";
+        holder.period.setText(day + month + " " + c.periodYear);
         holder.balance.setText(String.format(Locale.UK, "£%.2f", c.balance));
         holder.itemView.setOnClickListener(v -> onClick.onClick(c));
     }

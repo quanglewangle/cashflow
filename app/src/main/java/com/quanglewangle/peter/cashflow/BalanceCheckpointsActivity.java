@@ -83,16 +83,19 @@ public class BalanceCheckpointsActivity extends AppCompatActivity {
         android.view.View formView = getLayoutInflater().inflate(R.layout.dialog_edit_balance_checkpoint, null);
         EditText inputYear = formView.findViewById(R.id.inputYear);
         EditText inputMonth = formView.findViewById(R.id.inputMonth);
+        EditText inputDay = formView.findViewById(R.id.inputDay);
         EditText inputBalance = formView.findViewById(R.id.inputBalance);
 
+        Calendar now = Calendar.getInstance();
         if (existing != null) {
             inputYear.setText(String.valueOf(existing.periodYear));
             inputMonth.setText(String.valueOf(existing.periodMonth));
+            inputDay.setText(String.valueOf(existing.periodDay > 0 ? existing.periodDay : 1));
             inputBalance.setText(String.valueOf(existing.balance));
         } else {
-            Calendar now = Calendar.getInstance();
             inputYear.setText(String.valueOf(now.get(Calendar.YEAR)));
             inputMonth.setText(String.valueOf(now.get(Calendar.MONTH) + 1));
+            inputDay.setText(String.valueOf(now.get(Calendar.DAY_OF_MONTH)));
         }
 
         new AlertDialog.Builder(this)
@@ -102,12 +105,13 @@ public class BalanceCheckpointsActivity extends AppCompatActivity {
                 .setPositiveButton("Save", (dialog, which) -> {
                     Integer year = parseIntOrNull(inputYear.getText().toString());
                     Integer month = parseMonthOrNull(inputMonth.getText().toString());
+                    Integer day = parseDayOrNull(inputDay.getText().toString());
                     Double balance = parseDoubleOrNull(inputBalance.getText().toString());
-                    if (year == null || month == null || balance == null) {
-                        Toast.makeText(this, "A valid year, month (1-12), and balance are required", Toast.LENGTH_SHORT).show();
+                    if (year == null || month == null || day == null || balance == null) {
+                        Toast.makeText(this, "A valid year, month (1-12), day (1-31), and balance are required", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    repo.addCheckpoint(year, month, balance, this::loadAll,
+                    repo.addCheckpoint(year, month, day, balance, this::loadAll,
                             error -> Toast.makeText(this, error, Toast.LENGTH_LONG).show());
                 })
                 .show();
@@ -126,6 +130,12 @@ public class BalanceCheckpointsActivity extends AppCompatActivity {
     private Integer parseMonthOrNull(String s) {
         Integer v = parseIntOrNull(s);
         return (v != null && v >= 1 && v <= 12) ? v : null;
+    }
+
+    @Nullable
+    private Integer parseDayOrNull(String s) {
+        Integer v = parseIntOrNull(s);
+        return (v != null && v >= 1 && v <= 31) ? v : null;
     }
 
     @Nullable

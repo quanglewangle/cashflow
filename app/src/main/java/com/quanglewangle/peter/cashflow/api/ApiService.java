@@ -364,10 +364,11 @@ public class ApiService {
     // checkpoint any time instead of trusting one fixed opening balance
     // to stay accurate forever.
 
-    public void addCheckpoint(int periodYear, int periodMonth, double balance, Callback<Long> callback) {
+    public void addCheckpoint(int periodYear, int periodMonth, int periodDay, double balance, Callback<Long> callback) {
         JSONObject body = new JSONObject();
         set(body, "period_year", periodYear);
         set(body, "period_month", periodMonth);
+        set(body, "period_day", periodDay);
         set(body, "balance", balance);
         Request request = authed(new Request.Builder().url(BASE_URL + "checkpoints").post(jsonBody(body))).build();
         enqueue(request, idCallback(callback));
@@ -390,6 +391,7 @@ public class ApiService {
         c.id = o.optLong("id");
         c.periodYear = o.optInt("period_year");
         c.periodMonth = o.optInt("period_month");
+        c.periodDay = o.optInt("period_day", 1);
         c.balance = o.optDouble("balance", 0);
         return c;
     }

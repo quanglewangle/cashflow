@@ -238,8 +238,8 @@ public class Repository {
     }
 
     /** Re-anchors the forecast to a real bank balance you just checked. */
-    public void addCheckpoint(int periodYear, int periodMonth, double balance, Runnable onDone, ErrorCallback onError) {
-        api.addCheckpoint(periodYear, periodMonth, balance, new ApiService.Callback<Long>() {
+    public void addCheckpoint(int periodYear, int periodMonth, int periodDay, double balance, Runnable onDone, ErrorCallback onError) {
+        api.addCheckpoint(periodYear, periodMonth, periodDay, balance, new ApiService.Callback<Long>() {
             @Override public void onSuccess(Long id) { main.post(onDone); }
             @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
         });

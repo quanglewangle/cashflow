@@ -8,7 +8,7 @@
     <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="Enter the actual balance from your bank app for this month. Adding a checkpoint for an existing month replaces it." />
+        android:text="Enter the actual balance from your bank app. Adding a checkpoint for an existing date replaces it." />
 
     <TextView
         android:layout_width="wrap_content"
@@ -33,6 +33,19 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:hint="e.g. 6"
+        android:inputType="number"
+        android:maxLength="2" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Day (1-31)" />
+    <EditText
+        android:id="@+id/inputDay"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="e.g. 16"
         android:inputType="number"
         android:maxLength="2" />
 
