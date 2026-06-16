@@ -169,6 +169,7 @@ public class ApiService {
         set(body, "name", card.name);
         set(body, "statement_day", card.statementDay);
         set(body, "payment_due_day", card.paymentDueDay);
+        set(body, "payment_due_month_offset", card.paymentDueMonthOffset);
         return body;
     }
 
@@ -178,7 +179,20 @@ public class ApiService {
         c.name = o.optString("name");
         c.statementDay = o.optInt("statement_day");
         c.paymentDueDay = o.optInt("payment_due_day");
+        c.paymentDueMonthOffset = o.optInt("payment_due_month_offset", 1);
         return c;
+    }
+
+    /** Logs a real purchase against a card; the server recalculates that purchase's
+     *  payment-period entry from the running total of everything logged for it. */
+    public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso, Callback<Long> callback) {
+        JSONObject body = new JSONObject();
+        set(body, "credit_card_id", creditCardId);
+        set(body, "description", description);
+        set(body, "amount", amount);
+        set(body, "purchase_date", purchaseDateIso);
+        Request request = authed(new Request.Builder().url(BASE_URL + "card-purchases").post(jsonBody(body))).build();
+        enqueue(request, idCallback(callback));
     }
 
     // ---- recurring items ----

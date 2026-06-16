@@ -105,6 +105,16 @@ public class Repository {
         });
     }
 
+    /** Logs a real card purchase; not cached locally since it's a write-mostly log
+     *  and its effect (the recalculated entry) is already covered by entry caching. */
+    public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso,
+                                 Runnable onDone, ErrorCallback onError) {
+        api.addCardPurchase(creditCardId, description, amount, purchaseDateIso, new ApiService.Callback<Long>() {
+            @Override public void onSuccess(Long id) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
     // ---- recurring items ----
 
     public void getRecurringItems(ListCallback<RecurringItemEntity> callback) {
@@ -217,7 +227,14 @@ public class Repository {
     // ---- forecast (online only -- computed server-side from checkpoints + entries) ----
 
     public void getForecastRange(int year, int month, int count, ApiService.Callback<List<ForecastSummary>> callback) {
-        api.getForecastRange(year, month, count, callback);
+        // ApiService's callbacks fire on OkHttp's dispatcher thread, not the
+        // main thread -- every other Repository method hops back via
+        // main.post before touching UI; this one was missing that and could
+        // crash (e.g. Toast from a background thread) on error.
+        api.getForecastRange(year, month, count, new ApiService.Callback<List<ForecastSummary>>() {
+            @Override public void onSuccess(List<ForecastSummary> result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
     }
 
     /** Re-anchors the forecast to a real bank balance you just checked. */

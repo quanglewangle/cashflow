@@ -11,4 +11,6 @@ public class CreditCardEntity {
     public String name;
     public int statementDay;
     public int paymentDueDay;
+    /** Calendar months after the statement closes that payment is due (1 for all 3 seeded cards). */
+    public int paymentDueMonthOffset = 1;
 }

@@ -11,7 +11,11 @@ import androidx.room.RoomDatabase;
         CreditCardEntity.class,
         RecurringItemEntity.class,
         EntryEntity.class
-}, version = 1, exportSchema = false)
+}, version = 2, exportSchema = false)
+// v2: CreditCardEntity gained paymentDueMonthOffset. Bump this any time a Room
+// @Entity's fields change -- fallbackToDestructiveMigration() only fires on a
+// version change; without one Room throws on open with an identity-hash
+// mismatch instead of just recreating the (cache-only, disposable) tables.
 public abstract class AppDatabase extends RoomDatabase {
 
     private static volatile AppDatabase instance;

@@ -10,4 +10,7 @@
     <color name="incurred">#FF1B5E20</color>
     <color name="planned">#FF757575</color>
     <color name="negative">#FFC62828</color>
+    <!-- income/expense are the type-based colors used everywhere an amount is shown -->
+    <color name="income">#FF1565C0</color>
+    <color name="expense">#FFC62828</color>
 </resources>

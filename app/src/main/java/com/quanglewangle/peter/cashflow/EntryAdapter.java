@@ -1,5 +1,6 @@
 package com.quanglewangle.peter.cashflow;
 
+import android.graphics.Typeface;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -7,7 +8,6 @@ import android.widget.Button;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
@@ -47,13 +47,16 @@ public class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.ViewHolder> 
         holder.name.setText(e.name);
 
         boolean incurred = "incurred".equals(e.status);
+        boolean isIncome = "income".equals(e.itemType);
         double amount = incurred && e.actualAmount != null ? e.actualAmount : e.plannedAmount;
-        String prefix = incurred ? "Paid" : "Planned";
+        String incurredWord = isIncome ? "Received" : "Paid";
+        String prefix = incurred ? incurredWord : "Planned";
         holder.status.setText(String.format(Locale.UK, "%s: £%.2f", prefix, amount));
-        holder.status.setTextColor(ContextCompat.getColor(holder.itemView.getContext(),
-                incurred ? R.color.incurred : R.color.planned));
+        // Color always reflects income/expense; bold marks it as settled (paid/received).
+        holder.status.setTextColor(Util.colorForItemType(holder.itemView.getContext(), e.itemType));
+        holder.status.setTypeface(null, incurred ? Typeface.BOLD : Typeface.NORMAL);
 
-        holder.markIncurredButton.setText(incurred ? "Edit" : "Mark paid");
+        holder.markIncurredButton.setText(incurred ? "Edit" : (isIncome ? "Mark received" : "Mark paid"));
         holder.markIncurredButton.setOnClickListener(v -> onMarkIncurred.onClick(e));
     }
 

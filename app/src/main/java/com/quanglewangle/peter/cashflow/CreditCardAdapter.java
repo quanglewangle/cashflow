@@ -3,6 +3,7 @@ package com.quanglewangle.peter.cashflow;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
@@ -19,11 +20,15 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
     }
 
     private List<CreditCardEntity> items;
-    private final OnItemClick onClick;
+    /** Tapping the row logs a purchase -- the common case, day to day. */
+    private final OnItemClick onLogPurchase;
+    /** The edit icon is the rare-case path to changing the card's own parameters. */
+    private final OnItemClick onEdit;
 
-    public CreditCardAdapter(List<CreditCardEntity> items, OnItemClick onClick) {
+    public CreditCardAdapter(List<CreditCardEntity> items, OnItemClick onLogPurchase, OnItemClick onEdit) {
         this.items = items;
-        this.onClick = onClick;
+        this.onLogPurchase = onLogPurchase;
+        this.onEdit = onEdit;
     }
 
     public void setItems(List<CreditCardEntity> items) {
@@ -42,8 +47,10 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
     public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
         CreditCardEntity card = items.get(position);
         holder.name.setText(card.name);
-        holder.dates.setText("Statement " + Util.ordinal(card.statementDay) + " · Due " + Util.ordinal(card.paymentDueDay));
-        holder.itemView.setOnClickListener(v -> onClick.onClick(card));
+        String monthsLabel = card.paymentDueMonthOffset == 1 ? "1 month later" : card.paymentDueMonthOffset + " months later";
+        holder.dates.setText("Statement " + Util.ordinal(card.statementDay) + " · Due " + Util.ordinal(card.paymentDueDay) + " (" + monthsLabel + ")");
+        holder.itemView.setOnClickListener(v -> onLogPurchase.onClick(card));
+        holder.editButton.setOnClickListener(v -> onEdit.onClick(card));
     }
 
     @Override
@@ -53,11 +60,13 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView name, dates;
+        ImageButton editButton;
 
         ViewHolder(View itemView) {
             super(itemView);
             name = itemView.findViewById(R.id.name);
             dates = itemView.findViewById(R.id.dates);
+            editButton = itemView.findViewById(R.id.editButton);
         }
     }
 }

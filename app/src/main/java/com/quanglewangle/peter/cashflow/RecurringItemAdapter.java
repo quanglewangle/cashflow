@@ -53,6 +53,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
 
         holder.amount.setText(item.defaultAmount != null
                 ? String.format(Locale.UK, "£%.2f", item.defaultAmount) : "—");
+        holder.amount.setTextColor(Util.colorForItemType(holder.itemView.getContext(), item.itemType));
         holder.itemView.setOnClickListener(v -> onClick.onClick(item));
     }
 

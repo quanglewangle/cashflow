@@ -84,11 +84,12 @@ public class EntriesActivity extends AppCompatActivity {
         double prefill = entry.actualAmount != null ? entry.actualAmount : entry.plannedAmount;
         inputActual.setText(String.valueOf(prefill));
 
+        boolean isIncome = "income".equals(entry.itemType);
         new AlertDialog.Builder(this)
                 .setTitle(entry.name)
                 .setView(formView)
                 .setNegativeButton("Cancel", null)
-                .setPositiveButton("Mark paid", (dialog, which) -> {
+                .setPositiveButton(isIncome ? "Mark received" : "Mark paid", (dialog, which) -> {
                     Double amount = parseDoubleOrNull(inputActual.getText().toString());
                     if (amount == null) {
                         Toast.makeText(this, "Enter a valid amount", Toast.LENGTH_SHORT).show();

@@ -23,6 +23,8 @@ public class MainActivity extends AppCompatActivity {
                 fragment = new ItemsFragment();
             } else if (id == R.id.nav_cards) {
                 fragment = new CardsFragment();
+            } else if (id == R.id.nav_grid) {
+                fragment = new GridFragment();
             } else {
                 fragment = new ForecastFragment();
             }
