@@ -12,11 +12,17 @@ cache (same pattern as `rocloc`) -- the server is the source of truth.
 - **Entries**: one month's line items. "Mark paid" records the actual
   amount and flips status to incurred; add one-off items not backed by a
   template via the **+** button.
+- **Grid**: spreadsheet view -- items as rows, months as columns --
+  colour-coded by type. Card-charged items are greyed out (they don't
+  touch cash until the statement is paid).
 - **Items**: manage the recurring-item templates (monthly / annual /
   irregular) that generate each month's entries -- this is what makes
   annual payments (insurance, glasses, etc.) reappear automatically next
-  year instead of being zeroed and lost like in the spreadsheet.
+  year instead of being zeroed and lost like in the spreadsheet. Sorted
+  by due day of month; due day shown as a badge on each row.
 - **Cards**: manage credit card statement-closing and payment-due days.
+- **Balance checkpoints**: record actual bank balances to anchor the
+  forecast and spot drift.
 
 ## First-time server setup
 
