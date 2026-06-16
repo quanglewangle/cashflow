@@ -299,6 +299,7 @@ public class ApiService {
         set(body, "actual_amount", e.actualAmount);
         set(body, "status", e.status);
         set(body, "credit_card_id", e.creditCardId);
+        set(body, "due_day", e.dueDay);
         return body;
     }
 
@@ -315,6 +316,7 @@ public class ApiService {
         e.actualAmount = o.isNull("actual_amount") ? null : o.optDouble("actual_amount");
         e.status = o.optString("status", "planned");
         e.creditCardId = o.isNull("credit_card_id") ? null : o.optLong("credit_card_id");
+        e.dueDay = o.isNull("due_day") ? null : o.optInt("due_day");
         return e;
     }
 

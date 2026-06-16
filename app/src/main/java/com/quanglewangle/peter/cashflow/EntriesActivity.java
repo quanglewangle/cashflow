@@ -13,8 +13,10 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
+import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
 import java.text.DateFormatSymbols;
@@ -61,6 +63,7 @@ public class EntriesActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(this::loadEntries);
 
         repo.getCategories((cats, fromCache) -> categories = cats);
+        loadForecast();
         loadEntries();
     }
 
@@ -68,6 +71,15 @@ public class EntriesActivity extends AppCompatActivity {
     public boolean onSupportNavigateUp() {
         finish();
         return true;
+    }
+
+    private void loadForecast() {
+        repo.getForecastRange(year, month, 1, new ApiService.Callback<java.util.List<ForecastSummary>>() {
+            @Override public void onSuccess(java.util.List<ForecastSummary> result) {
+                if (!result.isEmpty()) adapter.setBroughtForward(result.get(0).broughtForward);
+            }
+            @Override public void onError(String error) { /* running balance stays hidden */ }
+        });
     }
 
     private void loadEntries() {
@@ -118,6 +130,7 @@ public class EntriesActivity extends AppCompatActivity {
         Spinner spinnerCategory = formView.findViewById(R.id.spinnerCategory);
         Spinner spinnerItemType = formView.findViewById(R.id.spinnerItemType);
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
+        EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
@@ -144,6 +157,7 @@ public class EntriesActivity extends AppCompatActivity {
                     entry.itemType = ITEM_TYPES[spinnerItemType.getSelectedItemPosition()];
                     entry.plannedAmount = amount;
                     entry.status = "planned";
+                    entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     repo.addEntry(entry, this::loadEntries, this::showError);
                 })
                 .show();
@@ -156,6 +170,14 @@ public class EntriesActivity extends AppCompatActivity {
     private Double parseDoubleOrNull(String s) {
         try {
             return Double.parseDouble(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private Integer parseIntOrNull(String s) {
+        try {
+            return s.trim().isEmpty() ? null : Integer.parseInt(s.trim());
         } catch (NumberFormatException e) {
             return null;
         }

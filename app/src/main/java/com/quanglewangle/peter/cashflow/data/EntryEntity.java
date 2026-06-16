@@ -19,4 +19,5 @@ public class EntryEntity {
     public Double actualAmount;    // set once incurred
     public String status;          // planned | incurred
     public Long creditCardId;
+    public Integer dueDay;
 }

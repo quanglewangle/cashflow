@@ -30,7 +30,7 @@ import java.util.List;
 public class ItemsFragment extends Fragment {
 
     private static final String[] ITEM_TYPES = {"income", "expense", "savings"};
-    private static final String[] FREQUENCIES = {"monthly", "annual", "irregular"};
+    private static final String[] FREQUENCIES = {"monthly", "four_weekly", "annual", "irregular"};
 
     private SwipeRefreshLayout swipeRefresh;
     private RecurringItemAdapter adapter;

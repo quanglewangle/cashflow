@@ -8,6 +8,16 @@
     android:paddingVertical="8dp"
     android:gravity="center_vertical">
 
+    <TextView
+        android:id="@+id/dueDay"
+        android:layout_width="44dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorPrimary"
+        tools:text="9th" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"
@@ -28,6 +38,14 @@
             android:layout_height="wrap_content"
             android:textSize="13sp"
             tools:text="Planned: £170.00" />
+
+        <TextView
+            android:id="@+id/runningBalance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:textSize="12sp"
+            android:textColor="@color/planned"
+            tools:text="Balance: £1,234.56" />
     </LinearLayout>
 
     <Button
