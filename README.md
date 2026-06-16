@@ -1,7 +1,7 @@
 # cashflow (Android)
 
 Cashflow forecast app, replacing the manual budget spreadsheet. Talks to
-the [cashflow-backend](../../cashflow-backend) REST API on
+the [cashflow-backend](https://github.com/quanglewangle/cashflow-backend) REST API on
 fimblefowl.co.uk, with a local Room database used purely as an offline
 cache (same pattern as `rocloc`) -- the server is the source of truth.
 
@@ -26,7 +26,7 @@ cache (same pattern as `rocloc`) -- the server is the source of truth.
 
 ## First-time server setup
 
-See `cashflow-backend/README.md`. In short: `createdb cashflow`, load
+See the [cashflow-backend README](https://github.com/quanglewangle/cashflow-backend#readme). In short: `createdb cashflow`, load
 `schema.sql` (seeds the 3 cards, default categories, and an opening
 balance row -- edit `opening_balance`/`opening_year`/`opening_month` in
 that file, or via `PUT /settings`, to match reality), deploy the Go
