@@ -71,6 +71,7 @@ public class ItemsFragment extends Fragment {
         });
         repo.getCreditCards((cards, fromCache) -> {
             creditCards = cards;
+            adapter.setCreditCards(cards);
             if (!fromCache) maybeStopRefresh();
         });
         repo.getRecurringItems((items, fromCache) -> {

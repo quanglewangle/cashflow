@@ -11,6 +11,16 @@
     android:clickable="true"
     android:focusable="true">
 
+    <TextView
+        android:id="@+id/dueDay"
+        android:layout_width="44dp"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:textSize="15sp"
+        android:textStyle="bold"
+        android:textColor="?attr/colorPrimary"
+        tools:text="1st" />
+
     <LinearLayout
         android:layout_width="0dp"
         android:layout_height="wrap_content"

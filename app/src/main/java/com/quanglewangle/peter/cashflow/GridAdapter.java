@@ -37,6 +37,11 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
         GridRow row = rows.get(position);
         holder.label.setText(row.label);
         holder.label.setTypeface(null, row.bold ? Typeface.BOLD : Typeface.NORMAL);
+        if (row.paidByCard) {
+            holder.label.setTextColor(Util.colorForAmount(holder.itemView.getContext(), row.itemType, true));
+        } else {
+            holder.label.setTextColor(Util.colorForItemType(holder.itemView.getContext(), null));
+        }
 
         holder.cellsContainer.removeAllViews();
         for (String cell : row.cells) {
@@ -45,7 +50,7 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
             tv.setText(cell);
             tv.setTextSize(13);
             tv.setTypeface(null, row.bold ? Typeface.BOLD : Typeface.NORMAL);
-            tv.setTextColor(Util.colorForItemType(holder.itemView.getContext(), row.itemType));
+            tv.setTextColor(Util.colorForAmount(holder.itemView.getContext(), row.itemType, row.paidByCard));
             holder.cellsContainer.addView(tv);
         }
     }

@@ -8,8 +8,11 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
@@ -20,6 +23,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
     }
 
     private List<RecurringItemEntity> items;
+    private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
 
     public RecurringItemAdapter(List<RecurringItemEntity> items, OnItemClick onClick) {
@@ -27,8 +31,14 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
         this.onClick = onClick;
     }
 
+    public void setCreditCards(List<CreditCardEntity> creditCards) {
+        this.creditCards = creditCards;
+        notifyDataSetChanged();
+    }
+
     public void setItems(List<RecurringItemEntity> items) {
-        this.items = items;
+        this.items = new ArrayList<>(items);
+        this.items.sort(Comparator.comparingInt(i -> i.dueDay != null ? i.dueDay : Integer.MAX_VALUE));
         notifyDataSetChanged();
     }
 
@@ -44,8 +54,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
         RecurringItemEntity item = items.get(position);
         holder.name.setText(item.name + (item.active ? "" : " (inactive)"));
 
+        holder.dueDay.setText(item.dueDay != null ? Util.ordinal(item.dueDay) : "—");
+
         StringBuilder subtitle = new StringBuilder(item.frequency);
-        if (item.dueDay != null) subtitle.append(" · due ").append(Util.ordinal(item.dueDay));
         if ("annual".equals(item.frequency) && item.targetMonth != null) {
             subtitle.append(" · ").append(monthName(item.targetMonth));
         }
@@ -53,7 +64,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
 
         holder.amount.setText(item.defaultAmount != null
                 ? String.format(Locale.UK, "£%.2f", item.defaultAmount) : "—");
-        holder.amount.setTextColor(Util.colorForItemType(holder.itemView.getContext(), item.itemType));
+        boolean paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
+        holder.amount.setTextColor(Util.colorForAmount(holder.itemView.getContext(), item.itemType, paidByCard));
         holder.itemView.setOnClickListener(v -> onClick.onClick(item));
     }
 
@@ -68,10 +80,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView name, subtitle, amount;
+        TextView dueDay, name, subtitle, amount;
 
         ViewHolder(View itemView) {
             super(itemView);
+            dueDay = itemView.findViewById(R.id.dueDay);
             name = itemView.findViewById(R.id.name);
             subtitle = itemView.findViewById(R.id.subtitle);
             amount = itemView.findViewById(R.id.amount);

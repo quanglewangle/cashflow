@@ -15,6 +15,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
+import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.Repository;
@@ -45,6 +46,7 @@ public class GridFragment extends Fragment {
     private int[] months = new int[MONTHS];
 
     private List<CategoryEntity> categories;
+    private List<CreditCardEntity> creditCards;
     private ForecastSummary[] forecasts = new ForecastSummary[MONTHS];
     private final Map<Integer, List<EntryEntity>> entriesByMonthIndex = new LinkedHashMap<>();
 
@@ -89,6 +91,11 @@ public class GridFragment extends Fragment {
             maybeBuildGrid();
         });
 
+        repo.getCreditCards((cards, fromCache) -> {
+            creditCards = cards;
+            maybeBuildGrid();
+        });
+
         repo.getForecastRange(years[0], months[0], MONTHS, new ApiService.Callback<List<ForecastSummary>>() {
             @Override public void onSuccess(List<ForecastSummary> result) {
                 for (int i = 0; i < MONTHS && i < result.size(); i++) forecasts[i] = result.get(i);
@@ -110,7 +117,7 @@ public class GridFragment extends Fragment {
     }
 
     private void maybeBuildGrid() {
-        if (categories == null || entriesByMonthIndex.size() < MONTHS) return;
+        if (categories == null || creditCards == null || entriesByMonthIndex.size() < MONTHS) return;
         for (ForecastSummary f : forecasts) if (f == null) return;
 
         adapter.setRows(buildRows());
@@ -139,13 +146,19 @@ public class GridFragment extends Fragment {
                 for (EntryEntity e : entriesByMonthIndex.get(i)) {
                     if (e.categoryId != category.id) continue;
                     String key = e.recurringItemId != null ? "ri-" + e.recurringItemId : "oneoff-" + e.id;
-                    GridRowBuilder b = byKey.computeIfAbsent(key, k -> new GridRowBuilder(e.name, e.itemType));
+                    boolean chargedToCard = Util.isChargedToCard(e.creditCardId, e.name, creditCards);
+                    GridRowBuilder b = byKey.computeIfAbsent(key, k -> new GridRowBuilder(e.name, e.itemType, chargedToCard));
                     boolean incurred = "incurred".equals(e.status);
                     b.amounts[i] = incurred && e.actualAmount != null ? e.actualAmount : e.plannedAmount;
                 }
             }
             for (GridRowBuilder b : byKey.values()) {
-                rows.add(new GridRow(b.name, formatAmounts(b.amounts), b.itemType, false));
+                // Greyed out for card-charged items: they're billed to the card, not
+                // cash, so they don't move the brought/carried-forward balance --
+                // the category total below (from the server's cash forecast)
+                // already excludes them. A card's own statement payment is a real
+                // cash expense though, so it's excluded from this and stays normal.
+                rows.add(new GridRow(b.name, formatAmounts(b.amounts), b.itemType, false, b.paidByCard));
             }
 
             String[] subtotal = formatAll(i -> {
@@ -180,11 +193,13 @@ public class GridFragment extends Fragment {
     private static class GridRowBuilder {
         final String name;
         final String itemType;
+        final boolean paidByCard;
         final Double[] amounts = new Double[MONTHS];
 
-        GridRowBuilder(String name, String itemType) {
+        GridRowBuilder(String name, String itemType, boolean paidByCard) {
             this.name = name;
             this.itemType = itemType;
+            this.paidByCard = paidByCard;
         }
     }
 }
