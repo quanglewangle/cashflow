@@ -127,7 +127,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             RecurringItemEntity item = items.get(i);
             int day = effectiveDay(item);
 
-            if (isCurrentMonth && !todayInserted && (day < 0 || day > todayDay)) {
+            if (isCurrentMonth && !todayInserted && (day < 0 || day >= todayDay)) {
                 displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
                 todayInserted = true;
             }
@@ -143,7 +143,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         double result = Double.isNaN(broughtForward) ? Double.NaN : broughtForward;
         for (int i = 0; i < items.size(); i++) {
             int day = effectiveDay(items.get(i));
-            if (day > 0 && day <= todayDay && !Double.isNaN(runningBalances[i])) {
+            if (day > 0 && day < todayDay && !Double.isNaN(runningBalances[i])) {
                 result = runningBalances[i];
             }
         }
