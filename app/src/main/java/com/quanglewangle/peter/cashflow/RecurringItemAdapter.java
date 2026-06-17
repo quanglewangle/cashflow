@@ -9,8 +9,10 @@ import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
+import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 
+import java.text.DateFormatSymbols;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Comparator;
@@ -37,11 +39,19 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private List<RecurringItemEntity> items = new ArrayList<>();
-    private List<Object> displayRows = new ArrayList<>(); // RecurringItemEntity or TodayMarker
-    private double[] runningBalances = new double[0];    // parallel to items, not displayRows
-    private double broughtForward = Double.NaN;
+    private List<EntryEntity> oneOffEntries = new ArrayList<>();
+
+    // sortedContentRows = RecurringItemEntity | EntryEntity, sorted by day
+    private List<Object> sortedContentRows = new ArrayList<>();
+    private double[] runningBalances = new double[0]; // parallel to sortedContentRows
+    private List<Object> displayRows = new ArrayList<>(); // sortedContentRows + TodayMarker
+
+    // Checkpoint: most recent balance snapshot at or before the displayed month
+    private int checkpointYear = 0;
+    private int checkpointMonth = 0;
     private int checkpointDay = 0;
     private double checkpointBalance = Double.NaN;
+
     private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
     private final OnTodayClick onTodayClick;
@@ -62,56 +72,90 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         notifyDataSetChanged();
     }
 
-    public void setBroughtForward(double broughtForward) {
-        this.broughtForward = broughtForward;
-        recomputeRunningBalances();
-        buildDisplayRows();
-        notifyDataSetChanged();
-    }
-
-    public void setCheckpoint(int day, double balance) {
+    public void setCheckpoint(int year, int month, int day, double balance) {
+        this.checkpointYear = year;
+        this.checkpointMonth = month;
         this.checkpointDay = day;
         this.checkpointBalance = balance;
-        recomputeRunningBalances();
-        buildDisplayRows();
-        notifyDataSetChanged();
+        rebuild();
     }
 
     public void setMonth(int year, int month) {
         this.displayYear = year;
         this.displayMonth = month;
-        this.broughtForward = Double.NaN;
-        this.checkpointDay = 0;
-        this.checkpointBalance = Double.NaN;
         setItems(items);
     }
 
     public void setItems(List<RecurringItemEntity> items) {
         this.items = new ArrayList<>(items);
-        this.items.sort(Comparator.comparingInt(i -> {
-            int d = effectiveDay(i);
-            return d > 0 ? d : Integer.MAX_VALUE;
-        }));
+        rebuild();
+    }
+
+    public void setOneOffEntries(List<EntryEntity> entries) {
+        this.oneOffEntries = new ArrayList<>(entries);
+        rebuild();
+    }
+
+    public double getChainedBroughtForward() {
+        return computeChainedBroughtForward();
+    }
+
+    public double getFinalRunningBalance() {
+        for (int i = runningBalances.length - 1; i >= 0; i--) {
+            if (!Double.isNaN(runningBalances[i])) return runningBalances[i];
+        }
+        return computeChainedBroughtForward();
+    }
+
+    // ---- Core rebuild ----
+
+    private void rebuild() {
+        buildSortedContentRows();
         recomputeRunningBalances();
         buildDisplayRows();
         notifyDataSetChanged();
     }
 
+    private void buildSortedContentRows() {
+        sortedContentRows = new ArrayList<>();
+        for (RecurringItemEntity item : items) {
+            if (effectiveDay(item) > 0) sortedContentRows.add(item);
+        }
+        for (EntryEntity e : oneOffEntries) {
+            sortedContentRows.add(e);
+        }
+        sortedContentRows.sort(Comparator.comparingInt(this::dayOf));
+    }
+
+    private int dayOf(Object row) {
+        if (row instanceof RecurringItemEntity) return effectiveDay((RecurringItemEntity) row);
+        if (row instanceof EntryEntity) {
+            EntryEntity e = (EntryEntity) row;
+            return e.dueDay != null ? e.dueDay : 32; // after all dated items
+        }
+        return 32;
+    }
+
     private void recomputeRunningBalances() {
-        runningBalances = new double[items.size()];
-        // Seed from checkpoint balance if there is one, otherwise from brought-forward
-        double seed = (checkpointDay > 0 && !Double.isNaN(checkpointBalance))
-                ? checkpointBalance : broughtForward;
-        double balance = Double.isNaN(seed) ? Double.NaN : seed;
-        for (int i = 0; i < items.size(); i++) {
-            RecurringItemEntity item = items.get(i);
-            int day = effectiveDay(item);
-            boolean afterCheckpoint = day > 0 && (checkpointDay == 0 || day >= checkpointDay);
-            if (afterCheckpoint && !Double.isNaN(balance) && item.defaultAmount != null) {
-                if ("income".equals(item.itemType)) balance += item.defaultAmount;
-                else balance -= item.defaultAmount;
+        runningBalances = new double[sortedContentRows.size()];
+        double broughtFwd = computeChainedBroughtForward();
+        double balance = Double.isNaN(broughtFwd) ? Double.NaN : broughtFwd;
+
+        int suppressBefore = (checkpointYear == displayYear && checkpointMonth == displayMonth)
+                ? checkpointDay : 0;
+
+        for (int i = 0; i < sortedContentRows.size(); i++) {
+            Object row = sortedContentRows.get(i);
+            int day = dayOf(row);
+            boolean show = suppressBefore == 0 || day >= suppressBefore;
+            if (show && !Double.isNaN(balance)) {
+                double amount = effectiveAmount(row);
+                if (!Double.isNaN(amount)) {
+                    if (isIncome(row)) balance += amount;
+                    else balance -= amount;
+                }
             }
-            runningBalances[i] = afterCheckpoint ? balance : Double.NaN;
+            runningBalances[i] = show ? balance : Double.NaN;
         }
     }
 
@@ -123,56 +167,109 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         int todayDay = now.get(Calendar.DAY_OF_MONTH);
         boolean todayInserted = false;
 
-        for (int i = 0; i < items.size(); i++) {
-            RecurringItemEntity item = items.get(i);
-            int day = effectiveDay(item);
-
-            if (isCurrentMonth && !todayInserted && (day < 0 || day >= todayDay)) {
+        for (Object row : sortedContentRows) {
+            int day = dayOf(row);
+            if (isCurrentMonth && !todayInserted && day >= todayDay) {
                 displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
                 todayInserted = true;
             }
-            displayRows.add(item);
+            displayRows.add(row);
         }
         if (isCurrentMonth && !todayInserted) {
             displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
         }
     }
 
-    /** Running balance after all items with effectiveDay in [1, todayDay]. */
     private double todayBalance(int todayDay) {
-        double result = Double.isNaN(broughtForward) ? Double.NaN : broughtForward;
-        for (int i = 0; i < items.size(); i++) {
-            int day = effectiveDay(items.get(i));
-            if (day > 0 && day < todayDay && !Double.isNaN(runningBalances[i])) {
+        double result = computeChainedBroughtForward();
+        for (int i = 0; i < sortedContentRows.size(); i++) {
+            if (dayOf(sortedContentRows.get(i)) < todayDay && !Double.isNaN(runningBalances[i])) {
                 result = runningBalances[i];
             }
         }
         return result;
     }
 
-    /** Returns the day-of-month this item falls on in (displayYear, displayMonth),
-     *  or -1 if it doesn't apply / has no date. */
+    // ---- Chaining ----
+
+    private double computeChainedBroughtForward() {
+        if (checkpointYear == 0 || Double.isNaN(checkpointBalance)) return Double.NaN;
+
+        int displayPeriod    = displayYear * 12 + displayMonth;
+        int checkpointPeriod = checkpointYear * 12 + checkpointMonth;
+
+        if (displayPeriod < checkpointPeriod) return Double.NaN;
+        if (displayPeriod == checkpointPeriod) return checkpointBalance;
+
+        double balance = checkpointBalance + monthNet(checkpointYear, checkpointMonth, checkpointDay);
+        int y = checkpointYear, m = checkpointMonth + 1;
+        if (m > 12) { m = 1; y++; }
+        while (y * 12 + m < displayPeriod) {
+            balance += monthNet(y, m, 1);
+            m++; if (m > 12) { m = 1; y++; }
+        }
+        return balance;
+    }
+
+    /** Net of active recurring items in (year, month) with effectiveDay >= fromDay. */
+    private double monthNet(int year, int month, int fromDay) {
+        double net = 0;
+        for (RecurringItemEntity item : items) {
+            if (!item.active || item.defaultAmount == null) continue;
+            int day = effectiveDayForMonth(item, year, month);
+            if (day > 0 && day >= fromDay) {
+                if ("income".equals(item.itemType)) net += item.defaultAmount;
+                else net -= item.defaultAmount;
+            }
+        }
+        return net;
+    }
+
+    // ---- Row helpers ----
+
+    private double effectiveAmount(Object row) {
+        if (row instanceof RecurringItemEntity) {
+            RecurringItemEntity item = (RecurringItemEntity) row;
+            return item.defaultAmount != null ? item.defaultAmount : Double.NaN;
+        }
+        if (row instanceof EntryEntity) {
+            EntryEntity e = (EntryEntity) row;
+            return e.actualAmount != null ? e.actualAmount : e.plannedAmount;
+        }
+        return Double.NaN;
+    }
+
+    private boolean isIncome(Object row) {
+        if (row instanceof RecurringItemEntity) return "income".equals(((RecurringItemEntity) row).itemType);
+        if (row instanceof EntryEntity) return "income".equals(((EntryEntity) row).itemType);
+        return false;
+    }
+
     private int effectiveDay(RecurringItemEntity item) {
+        return effectiveDayForMonth(item, displayYear, displayMonth);
+    }
+
+    private int effectiveDayForMonth(RecurringItemEntity item, int year, int month) {
         switch (item.frequency == null ? "" : item.frequency) {
             case "monthly": {
                 if (item.anchorDate != null && item.anchorDate.length() >= 7) {
                     try {
                         int ay = Integer.parseInt(item.anchorDate.substring(0, 4));
                         int am = Integer.parseInt(item.anchorDate.substring(5, 7));
-                        if (ay * 12 + am > displayYear * 12 + displayMonth) return -1;
+                        if (ay * 12 + am > year * 12 + month) return -1;
                     } catch (NumberFormatException ignored) {}
                 }
                 return item.dueDay != null ? item.dueDay : -1;
             }
             case "four_weekly": {
                 if (item.anchorDate != null) {
-                    int[] days = Util.fourWeeklyDaysInMonth(item.anchorDate, displayYear, displayMonth);
+                    int[] days = Util.fourWeeklyDaysInMonth(item.anchorDate, year, month);
                     return days.length > 0 ? days[0] : -1;
                 }
                 return item.dueDay != null ? item.dueDay : -1;
             }
             case "annual": {
-                if (item.targetMonth != null && item.targetMonth == displayMonth) {
+                if (item.targetMonth != null && item.targetMonth == month) {
                     return item.dueDay != null ? item.dueDay : -1;
                 }
                 return -1;
@@ -197,6 +294,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         return d > 0 ? Util.ordinal(d) : "—";
     }
 
+    // ---- RecyclerView ----
+
     @Override
     public int getItemViewType(int position) {
         return displayRows.get(position) instanceof TodayMarker ? TYPE_TODAY : TYPE_ITEM;
@@ -216,52 +315,59 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     @Override
     public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        Object row = displayRows.get(position);
+
         if (holder instanceof TodayViewHolder) {
-            TodayMarker marker = (TodayMarker) displayRows.get(position);
+            TodayMarker marker = (TodayMarker) row;
             TodayViewHolder tvh = (TodayViewHolder) holder;
             tvh.todayDay.setText(Util.ordinal(marker.day));
-            if (!Double.isNaN(marker.balance)) {
-                tvh.todayBalance.setText(String.format(Locale.UK, "£%.2f", marker.balance));
-            } else {
-                tvh.todayBalance.setText("");
-            }
+            tvh.todayBalance.setText(!Double.isNaN(marker.balance)
+                    ? String.format(Locale.UK, "£%.2f", marker.balance) : "");
             tvh.itemView.setOnClickListener(v -> onTodayClick.onTodayClick(marker.day, marker.balance));
             return;
         }
 
-        RecurringItemEntity item = (RecurringItemEntity) displayRows.get(position);
-        // find index in items list to look up running balance
-        int itemIndex = items.indexOf(item);
-
         ItemViewHolder ivh = (ItemViewHolder) holder;
-        ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
-        ivh.dueDay.setText(effectiveDayLabel(item));
+        int idx = sortedContentRows.indexOf(row);
+        double bal = (idx >= 0 && idx < runningBalances.length) ? runningBalances[idx] : Double.NaN;
 
-        StringBuilder subtitle = new StringBuilder(item.frequency);
-        if ("annual".equals(item.frequency) && item.targetMonth != null) {
-            subtitle.append(" · ").append(monthName(item.targetMonth));
+        if (row instanceof RecurringItemEntity) {
+            RecurringItemEntity item = (RecurringItemEntity) row;
+            ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
+            ivh.dueDay.setText(effectiveDayLabel(item));
+            StringBuilder subtitle = new StringBuilder(item.frequency);
+            if ("annual".equals(item.frequency) && item.targetMonth != null) {
+                subtitle.append(" · ").append(monthName(item.targetMonth));
+            }
+            ivh.subtitle.setText(subtitle.toString());
+            ivh.amount.setText(item.defaultAmount != null
+                    ? String.format(Locale.UK, "£%.2f", item.defaultAmount) : "—");
+            boolean paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
+            ivh.amount.setTextColor(Util.colorForAmount(ivh.itemView.getContext(), item.itemType, paidByCard));
+            ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
+        } else if (row instanceof EntryEntity) {
+            EntryEntity entry = (EntryEntity) row;
+            String status = "incurred".equals(entry.status) ? " ✓" : "";
+            ivh.name.setText(entry.name + status);
+            ivh.dueDay.setText(entry.dueDay != null ? Util.ordinal(entry.dueDay) : "—");
+            ivh.subtitle.setText("one-off");
+            double amount = effectiveAmount(entry);
+            ivh.amount.setText(!Double.isNaN(amount)
+                    ? String.format(Locale.UK, "£%.2f", amount) : "—");
+            ivh.amount.setTextColor(Util.colorForAmount(ivh.itemView.getContext(), entry.itemType, false));
+            ivh.itemView.setOnClickListener(null);
         }
-        ivh.subtitle.setText(subtitle.toString());
 
-        ivh.amount.setText(item.defaultAmount != null
-                ? String.format(Locale.UK, "£%.2f", item.defaultAmount) : "—");
-        boolean paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
-        ivh.amount.setTextColor(Util.colorForAmount(ivh.itemView.getContext(), item.itemType, paidByCard));
-
-        double bal = (itemIndex >= 0 && itemIndex < runningBalances.length)
-                ? runningBalances[itemIndex] : Double.NaN;
-        if (!Double.isNaN(bal) && effectiveDay(item) > 0) {
+        if (!Double.isNaN(bal)) {
             ivh.runningBalance.setVisibility(View.VISIBLE);
             ivh.runningBalance.setText(String.format(Locale.UK, "Balance: £%.2f", bal));
         } else {
             ivh.runningBalance.setVisibility(View.GONE);
         }
-
-        ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
     }
 
     private String monthName(int month) {
-        String[] names = new java.text.DateFormatSymbols(Locale.UK).getMonths();
+        String[] names = new DateFormatSymbols(Locale.UK).getMonths();
         return month >= 1 && month <= 12 ? names[month - 1] : "";
     }
 
@@ -272,7 +378,6 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     static class ItemViewHolder extends RecyclerView.ViewHolder {
         TextView dueDay, name, subtitle, amount, runningBalance;
-
         ItemViewHolder(View itemView) {
             super(itemView);
             dueDay = itemView.findViewById(R.id.dueDay);
@@ -285,7 +390,6 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     static class TodayViewHolder extends RecyclerView.ViewHolder {
         TextView todayDay, todayBalance;
-
         TodayViewHolder(View itemView) {
             super(itemView);
             todayDay = itemView.findViewById(R.id.todayDay);

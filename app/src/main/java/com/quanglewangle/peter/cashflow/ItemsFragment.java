@@ -28,7 +28,7 @@ import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
-import com.quanglewangle.peter.cashflow.data.ForecastSummary;
+import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
@@ -97,14 +97,18 @@ public class ItemsFragment extends Fragment {
             if (displayMonth < 1) { displayMonth = 12; displayYear--; }
             updateMonthLabel();
             adapter.setMonth(displayYear, displayMonth);
+            adapter.setOneOffEntries(new ArrayList<>());
             loadBalance();
+            loadEntries();
         });
         btnNext.setOnClickListener(v -> {
             displayMonth++;
             if (displayMonth > 12) { displayMonth = 1; displayYear++; }
             updateMonthLabel();
             adapter.setMonth(displayYear, displayMonth);
+            adapter.setOneOffEntries(new ArrayList<>());
             loadBalance();
+            loadEntries();
         });
 
         view.findViewById(R.id.balanceSection).setOnClickListener(v -> {
@@ -142,7 +146,21 @@ public class ItemsFragment extends Fragment {
         });
         repo.getRecurringItems((items, fromCache) -> {
             adapter.setItems(items);
+            updateBalanceLabels();
             if (!fromCache) maybeStopRefresh();
+        });
+        loadEntries();
+    }
+
+    private void loadEntries() {
+        repo.loadPeriod(displayYear, displayMonth, (entries, fromCache) -> {
+            if (getContext() == null) return;
+            List<EntryEntity> oneOffs = new ArrayList<>();
+            for (EntryEntity e : entries) {
+                if (e.recurringItemId == null) oneOffs.add(e);
+            }
+            adapter.setOneOffEntries(oneOffs);
+            updateBalanceLabels();
         });
     }
 
@@ -155,33 +173,39 @@ public class ItemsFragment extends Fragment {
         monthLabel.setText(month + " " + displayYear);
     }
 
+    private void updateBalanceLabels() {
+        if (getContext() == null) return;
+        double bf = adapter.getChainedBroughtForward();
+        double cf = adapter.getFinalRunningBalance();
+        broughtFwd.setText(Double.isNaN(bf) ? ""
+                : String.format(Locale.UK, "Brought fwd: £%.2f", bf));
+        carriedFwd.setText(Double.isNaN(cf) ? ""
+                : String.format(Locale.UK, "Carried fwd: £%.2f", cf));
+    }
+
     private void loadBalance() {
         broughtFwd.setText("");
         carriedFwd.setText("");
         int year = displayYear;
         int month = displayMonth;
-        repo.getForecastRange(year, month, 1, new ApiService.Callback<List<ForecastSummary>>() {
-            @Override public void onSuccess(List<ForecastSummary> result) {
-                if (result.isEmpty() || getContext() == null) return;
-                ForecastSummary s = result.get(0);
-                broughtFwd.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
-                carriedFwd.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
-                adapter.setBroughtForward(s.broughtForward);
-            }
-            @Override public void onError(String error) {}
-        });
         repo.getCheckpoints(new ApiService.Callback<List<BalanceCheckpoint>>() {
             @Override public void onSuccess(List<BalanceCheckpoint> checkpoints) {
                 if (getContext() == null) return;
-                int latestDay = 0;
+                int latestYear = 0, latestMonth = 0, latestDay = 0;
                 double latestBalance = Double.NaN;
+                int displayPeriod = year * 12 + month;
                 for (BalanceCheckpoint cp : checkpoints) {
-                    if (cp.periodYear == year && cp.periodMonth == month && cp.periodDay > latestDay) {
-                        latestDay = cp.periodDay;
-                        latestBalance = cp.balance;
+                    int cpPeriod = cp.periodYear * 12 + cp.periodMonth;
+                    if (cpPeriod > displayPeriod) continue;
+                    int bestPeriod = latestYear * 12 + latestMonth;
+                    if (cpPeriod > bestPeriod
+                            || (cpPeriod == bestPeriod && cp.periodDay > latestDay)) {
+                        latestYear = cp.periodYear; latestMonth = cp.periodMonth;
+                        latestDay = cp.periodDay; latestBalance = cp.balance;
                     }
                 }
-                adapter.setCheckpoint(latestDay, latestBalance);
+                adapter.setCheckpoint(latestYear, latestMonth, latestDay, latestBalance);
+                updateBalanceLabels();
             }
             @Override public void onError(String error) {}
         });
