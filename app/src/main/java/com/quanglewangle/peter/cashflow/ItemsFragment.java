@@ -22,6 +22,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quanglewangle.peter.cashflow.api.ApiService;
+import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
@@ -140,17 +141,31 @@ public class ItemsFragment extends Fragment {
     private void loadBalance() {
         broughtFwd.setText("");
         carriedFwd.setText("");
-        repo.getForecastRange(displayYear, displayMonth, 1,
-                new ApiService.Callback<List<ForecastSummary>>() {
-                    @Override public void onSuccess(List<ForecastSummary> result) {
-                        if (result.isEmpty() || getContext() == null) return;
-                        ForecastSummary s = result.get(0);
-                        broughtFwd.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
-                        carriedFwd.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
-                        adapter.setBroughtForward(s.broughtForward);
+        int year = displayYear;
+        int month = displayMonth;
+        repo.getForecastRange(year, month, 1, new ApiService.Callback<List<ForecastSummary>>() {
+            @Override public void onSuccess(List<ForecastSummary> result) {
+                if (result.isEmpty() || getContext() == null) return;
+                ForecastSummary s = result.get(0);
+                broughtFwd.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
+                carriedFwd.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
+                adapter.setBroughtForward(s.broughtForward);
+            }
+            @Override public void onError(String error) {}
+        });
+        repo.getCheckpoints(new ApiService.Callback<List<BalanceCheckpoint>>() {
+            @Override public void onSuccess(List<BalanceCheckpoint> checkpoints) {
+                if (getContext() == null) return;
+                int latestDay = 0;
+                for (BalanceCheckpoint cp : checkpoints) {
+                    if (cp.periodYear == year && cp.periodMonth == month && cp.periodDay > latestDay) {
+                        latestDay = cp.periodDay;
                     }
-                    @Override public void onError(String error) {}
-                });
+                }
+                adapter.setCheckpointDay(latestDay);
+            }
+            @Override public void onError(String error) {}
+        });
     }
 
     private void showCheckpointDialog(int day, double suggestedBalance) {
@@ -275,7 +290,13 @@ public class ItemsFragment extends Fragment {
 
         if (existing != null) {
             builder.setNeutralButton("Delete", (dialog, which) ->
-                    repo.deleteRecurringItem(existing.id, this::loadAll, this::showError));
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("Delete \"" + existing.name + "\"?")
+                            .setMessage("This cannot be undone.")
+                            .setPositiveButton("Delete", (d2, w2) ->
+                                    repo.deleteRecurringItem(existing.id, this::loadAll, this::showError))
+                            .setNegativeButton("Cancel", null)
+                            .show());
         }
 
         builder.show();

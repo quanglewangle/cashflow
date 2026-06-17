@@ -40,6 +40,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private List<Object> displayRows = new ArrayList<>(); // RecurringItemEntity or TodayMarker
     private double[] runningBalances = new double[0];    // parallel to items, not displayRows
     private double broughtForward = Double.NaN;
+    private int checkpointDay = 0; // latest checkpoint day-of-month in displayed month; 0 = none
     private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
     private final OnTodayClick onTodayClick;
@@ -67,10 +68,18 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         notifyDataSetChanged();
     }
 
+    public void setCheckpointDay(int day) {
+        this.checkpointDay = day;
+        recomputeRunningBalances();
+        buildDisplayRows();
+        notifyDataSetChanged();
+    }
+
     public void setMonth(int year, int month) {
         this.displayYear = year;
         this.displayMonth = month;
         this.broughtForward = Double.NaN;
+        this.checkpointDay = 0;
         setItems(items);
     }
 
@@ -90,11 +99,13 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         double balance = Double.isNaN(broughtForward) ? Double.NaN : broughtForward;
         for (int i = 0; i < items.size(); i++) {
             RecurringItemEntity item = items.get(i);
-            if (!Double.isNaN(balance) && effectiveDay(item) > 0 && item.defaultAmount != null) {
+            int day = effectiveDay(item);
+            boolean afterCheckpoint = day > 0 && (checkpointDay == 0 || day >= checkpointDay);
+            if (afterCheckpoint && !Double.isNaN(balance) && item.defaultAmount != null) {
                 if ("income".equals(item.itemType)) balance += item.defaultAmount;
                 else balance -= item.defaultAmount;
             }
-            runningBalances[i] = balance;
+            runningBalances[i] = afterCheckpoint ? balance : Double.NaN;
         }
     }
 
