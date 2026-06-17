@@ -3,6 +3,9 @@ package com.quanglewangle.peter.cashflow;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
+import android.view.Menu;
+import android.view.MenuInflater;
+import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
@@ -55,7 +58,22 @@ public class ItemsFragment extends Fragment {
     @Nullable
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
+        setHasOptionsMenu(true);
         return inflater.inflate(R.layout.fragment_items, container, false);
+    }
+
+    @Override
+    public void onCreateOptionsMenu(@NonNull Menu menu, @NonNull MenuInflater inflater) {
+        inflater.inflate(R.menu.menu_items_fragment, menu);
+    }
+
+    @Override
+    public boolean onOptionsItemSelected(@NonNull MenuItem item) {
+        if (item.getItemId() == R.id.action_balances) {
+            startActivity(new Intent(getContext(), BalanceCheckpointsActivity.class));
+            return true;
+        }
+        return super.onOptionsItemSelected(item);
     }
 
     @Override
@@ -95,8 +113,7 @@ public class ItemsFragment extends Fragment {
             intent.putExtra(EntriesActivity.EXTRA_MONTH, displayMonth);
             startActivity(intent);
         });
-        view.findViewById(R.id.fabAdd).setOnClickListener(v ->
-                startActivity(new Intent(getContext(), BalanceCheckpointsActivity.class)));
+        view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
