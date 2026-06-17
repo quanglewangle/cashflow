@@ -206,7 +206,13 @@ public class ApiService {
         p.description = o.optString("description");
         p.amount = o.optDouble("amount", 0);
         p.purchaseDate = o.optString("purchase_date");
+        p.recurringPurchaseId = o.isNull("recurring_purchase_id") ? null : o.optLong("recurring_purchase_id");
         return p;
+    }
+
+    public void deleteRecurringCardPurchase(long id, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "recurring-card-purchases/" + id).delete()).build();
+        enqueue(request, voidCallback(callback));
     }
 
     public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso, Callback<Void> callback) {

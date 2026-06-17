@@ -399,18 +399,32 @@ public class ItemsFragment extends Fragment {
                 .setNeutralButton("Delete", null)
                 .create();
         dialog.show();
-        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v ->
-                new AlertDialog.Builder(requireContext())
-                        .setTitle("Delete this purchase?")
-                        .setMessage(purchase.description + " — £" + String.format(Locale.UK, "%.2f", purchase.amount))
-                        .setPositiveButton("Delete", (d2, w2) -> {
-                            dialog.dismiss();
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v -> {
+            boolean isRecurring = purchase.recurringPurchaseId != null;
+            String message = isRecurring
+                    ? purchase.description + " is a subscription — this will cancel it in all future months too."
+                    : purchase.description + " — £" + String.format(Locale.UK, "%.2f", purchase.amount);
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Delete this purchase?")
+                    .setMessage(message)
+                    .setPositiveButton("Delete", (d2, w2) -> {
+                        dialog.dismiss();
+                        if (isRecurring) {
+                            // Delete template first (prevents regeneration), then instance
+                            repo.deleteRecurringCardPurchase(purchase.recurringPurchaseId, () ->
+                                    repo.deleteCardPurchase(purchase.id,
+                                            () -> refreshAfterPurchaseChange(purchase, null),
+                                            this::showError),
+                                    this::showError);
+                        } else {
                             repo.deleteCardPurchase(purchase.id,
                                     () -> refreshAfterPurchaseChange(purchase, null),
                                     this::showError);
-                        })
-                        .setNegativeButton("Cancel", null)
-                        .show());
+                        }
+                    })
+                    .setNegativeButton("Cancel", null)
+                    .show();
+        });
     }
 
     private void refreshAfterPurchaseChange(CardPurchase purchase, @Nullable String newDate) {
