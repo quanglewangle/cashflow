@@ -234,6 +234,7 @@ public class ApiService {
         set(body, "default_amount", item.defaultAmount);
         set(body, "due_day", item.dueDay);
         set(body, "target_month", item.targetMonth);
+        set(body, "anchor_date", item.anchorDate);
         set(body, "credit_card_id", item.creditCardId);
         set(body, "active", item.active);
         set(body, "notes", item.notes);
@@ -253,6 +254,7 @@ public class ApiService {
         r.creditCardId = o.isNull("credit_card_id") ? null : o.optLong("credit_card_id");
         r.active = o.optBoolean("active", true);
         r.notes = o.isNull("notes") ? null : o.optString("notes");
+        r.anchorDate = o.isNull("anchor_date") ? null : o.optString("anchor_date");
         return r;
     }
 

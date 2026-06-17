@@ -24,4 +24,5 @@ public class RecurringItemEntity {
     public Long creditCardId;
     public boolean active;
     public String notes;
+    public String anchorDate; // ISO "YYYY-MM-01" — for monthly: don't generate before this month
 }

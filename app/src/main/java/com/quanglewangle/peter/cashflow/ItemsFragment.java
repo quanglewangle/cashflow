@@ -98,6 +98,8 @@ public class ItemsFragment extends Fragment {
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
         EditText inputTargetMonth = formView.findViewById(R.id.inputTargetMonth);
+        EditText inputStartYear = formView.findViewById(R.id.inputStartYear);
+        EditText inputStartMonth = formView.findViewById(R.id.inputStartMonth);
         Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
         CheckBox checkActive = formView.findViewById(R.id.checkActive);
 
@@ -127,6 +129,10 @@ public class ItemsFragment extends Fragment {
             if (existing.defaultAmount != null) inputAmount.setText(String.valueOf(existing.defaultAmount));
             if (existing.dueDay != null) inputDueDay.setText(String.valueOf(existing.dueDay));
             if (existing.targetMonth != null) inputTargetMonth.setText(String.valueOf(existing.targetMonth));
+            if (existing.anchorDate != null && existing.anchorDate.length() >= 7) {
+                inputStartYear.setText(existing.anchorDate.substring(0, 4));
+                inputStartMonth.setText(existing.anchorDate.substring(5, 7).replaceFirst("^0", ""));
+            }
             if (existing.creditCardId != null) {
                 for (int i = 0; i < creditCards.size(); i++) {
                     if (creditCards.get(i).id == existing.creditCardId) spinnerCreditCard.setSelection(i + 1);
@@ -148,6 +154,13 @@ public class ItemsFragment extends Fragment {
                     item.defaultAmount = parseDoubleOrNull(inputAmount.getText().toString());
                     item.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     item.targetMonth = parseIntOrNull(inputTargetMonth.getText().toString());
+                    Integer startYear = parseIntOrNull(inputStartYear.getText().toString());
+                    Integer startMonth = parseIntOrNull(inputStartMonth.getText().toString());
+                    if (startYear != null && startMonth != null) {
+                        item.anchorDate = String.format(java.util.Locale.US, "%04d-%02d-01", startYear, startMonth);
+                    } else {
+                        item.anchorDate = null;
+                    }
                     int cardPos = spinnerCreditCard.getSelectedItemPosition();
                     item.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
                     item.active = checkActive.isChecked();
