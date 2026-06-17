@@ -23,13 +23,19 @@ public class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.ViewHolder> 
         void onClick(EntryEntity entry);
     }
 
+    public interface OnDelete {
+        void onDelete(EntryEntity entry);
+    }
+
     private List<EntryEntity> items = new ArrayList<>();
     private double[] runningBalances = new double[0];
     private double broughtForward = Double.NaN;
     private final OnMarkIncurred onMarkIncurred;
+    private final OnDelete onDelete;
 
-    public EntryAdapter(List<EntryEntity> items, OnMarkIncurred onMarkIncurred) {
+    public EntryAdapter(List<EntryEntity> items, OnMarkIncurred onMarkIncurred, OnDelete onDelete) {
         this.onMarkIncurred = onMarkIncurred;
+        this.onDelete = onDelete;
         setItems(items);
     }
 
@@ -92,6 +98,7 @@ public class EntryAdapter extends RecyclerView.Adapter<EntryAdapter.ViewHolder> 
 
         holder.markIncurredButton.setText(incurred ? "Edit" : (isIncome ? "Mark received" : "Mark paid"));
         holder.markIncurredButton.setOnClickListener(v -> onMarkIncurred.onClick(e));
+        holder.itemView.setOnLongClickListener(v -> { onDelete.onDelete(e); return true; });
     }
 
     @Override

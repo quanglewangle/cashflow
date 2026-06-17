@@ -56,7 +56,7 @@ public class EntriesActivity extends AppCompatActivity {
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        adapter = new EntryAdapter(new ArrayList<>(), this::showMarkIncurredDialog);
+        adapter = new EntryAdapter(new ArrayList<>(), this::showMarkIncurredDialog, this::showDeleteConfirmDialog);
         recyclerView.setAdapter(adapter);
 
         findViewById(R.id.fabAdd).setOnClickListener(v -> showAddEntryDialog());
@@ -116,6 +116,18 @@ public class EntriesActivity extends AppCompatActivity {
                     entry.status = "planned";
                     repo.updateEntry(entry, this::loadEntries, this::showError);
                 })
+                .show();
+
+        // Separate confirm-delete dialog accessible from a long-press on the row
+    }
+
+    private void showDeleteConfirmDialog(EntryEntity entry) {
+        new AlertDialog.Builder(this)
+                .setTitle("Delete entry")
+                .setMessage("Delete \"" + entry.name + "\"? This cannot be undone.")
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Delete", (dialog, which) ->
+                        repo.deleteEntry(entry.id, this::loadEntries, this::showError))
                 .show();
     }
 
