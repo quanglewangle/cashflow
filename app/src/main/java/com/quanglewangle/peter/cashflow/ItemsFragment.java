@@ -230,6 +230,7 @@ public class ItemsFragment extends Fragment {
         EditText inputTargetMonth = formView.findViewById(R.id.inputTargetMonth);
         EditText inputStartYear = formView.findViewById(R.id.inputStartYear);
         EditText inputStartMonth = formView.findViewById(R.id.inputStartMonth);
+        EditText inputStartDay = formView.findViewById(R.id.inputStartDay);
         Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
         CheckBox checkActive = formView.findViewById(R.id.checkActive);
 
@@ -262,6 +263,9 @@ public class ItemsFragment extends Fragment {
             if (existing.anchorDate != null && existing.anchorDate.length() >= 7) {
                 inputStartYear.setText(existing.anchorDate.substring(0, 4));
                 inputStartMonth.setText(existing.anchorDate.substring(5, 7).replaceFirst("^0", ""));
+                if (existing.anchorDate.length() >= 10) {
+                    inputStartDay.setText(existing.anchorDate.substring(8, 10).replaceFirst("^0", ""));
+                }
             }
             if (existing.creditCardId != null) {
                 for (int i = 0; i < creditCards.size(); i++) {
@@ -286,8 +290,10 @@ public class ItemsFragment extends Fragment {
                     item.targetMonth = parseIntOrNull(inputTargetMonth.getText().toString());
                     Integer startYear = parseIntOrNull(inputStartYear.getText().toString());
                     Integer startMonth = parseIntOrNull(inputStartMonth.getText().toString());
+                    Integer startDay = parseIntOrNull(inputStartDay.getText().toString());
                     if (startYear != null && startMonth != null) {
-                        item.anchorDate = String.format(java.util.Locale.US, "%04d-%02d-01", startYear, startMonth);
+                        int d = startDay != null ? startDay : 1;
+                        item.anchorDate = String.format(java.util.Locale.US, "%04d-%02d-%02d", startYear, startMonth, d);
                     } else {
                         item.anchorDate = null;
                     }
