@@ -2,6 +2,7 @@ package com.quanglewangle.peter.cashflow.api;
 
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
+import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
@@ -213,6 +214,45 @@ public class ApiService {
     public void deleteRecurringCardPurchase(long id, Callback<Void> callback) {
         Request request = authed(new Request.Builder().url(BASE_URL + "recurring-card-purchases/" + id).delete()).build();
         enqueue(request, voidCallback(callback));
+    }
+
+    public void getRecurringCardPurchases(long creditCardId, Callback<List<RecurringCardPurchase>> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "recurring-card-purchases?credit_card_id=" + creditCardId)
+                .build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<RecurringCardPurchase> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) out.add(parseRecurringCardPurchase(arr.optJSONObject(i)));
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    public void addRecurringCardPurchase(long creditCardId, String description, double amount,
+                                          int dayOfMonth, Callback<Long> callback) {
+        JSONObject body = new JSONObject();
+        set(body, "credit_card_id", creditCardId);
+        set(body, "description", description);
+        set(body, "amount", amount);
+        set(body, "frequency", "monthly");
+        set(body, "day_of_month", dayOfMonth);
+        Request request = authed(new Request.Builder().url(BASE_URL + "recurring-card-purchases").post(jsonBody(body))).build();
+        enqueue(request, idCallback(callback));
+    }
+
+    private RecurringCardPurchase parseRecurringCardPurchase(JSONObject o) {
+        RecurringCardPurchase r = new RecurringCardPurchase();
+        r.id = o.optLong("id");
+        r.creditCardId = o.optLong("credit_card_id");
+        r.description = o.optString("description");
+        r.amount = o.optDouble("amount", 0);
+        r.frequency = o.optString("frequency", "monthly");
+        r.dayOfMonth = o.optInt("day_of_month", 1);
+        r.targetMonth = o.isNull("target_month") ? null : o.optInt("target_month");
+        r.active = o.optBoolean("active", true);
+        return r;
     }
 
     public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso, Callback<Void> callback) {

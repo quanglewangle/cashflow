@@ -16,10 +16,12 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
+import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
 import java.text.DateFormatSymbols;
 import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 /** Manage credit cards: name + statement closing day + payment due day. */
@@ -46,7 +48,8 @@ public class CardsFragment extends Fragment {
 
         // Logging a purchase is the everyday action; editing a card's own
         // parameters (name/dates) is rare, so it's tucked behind the edit icon.
-        adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog, this::showEditDialog);
+        adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog,
+                this::showSubscriptionsDialog, this::showEditDialog);
         recyclerView.setAdapter(adapter);
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
@@ -150,6 +153,82 @@ public class CardsFragment extends Fragment {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private void showSubscriptionsDialog(CreditCardEntity card) {
+        repo.getRecurringCardPurchases(card.id, (subs, fromCache) -> {
+            if (getContext() == null) return;
+            String[] items = new String[subs.size()];
+            for (int i = 0; i < subs.size(); i++) {
+                RecurringCardPurchase s = subs.get(i);
+                items[i] = s.description + " — £" + String.format(Locale.UK, "%.2f", s.amount)
+                        + " (" + Util.ordinal(s.dayOfMonth) + " each month)";
+            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(card.name + " subscriptions")
+                    .setItems(items.length > 0 ? items : new String[]{"No subscriptions yet"},
+                            (d, which) -> {
+                                if (subs.isEmpty()) return;
+                                RecurringCardPurchase sub = subs.get(which);
+                                new AlertDialog.Builder(requireContext())
+                                        .setTitle("Delete subscription?")
+                                        .setMessage(sub.description + " — £" + String.format(Locale.UK, "%.2f", sub.amount))
+                                        .setPositiveButton("Delete", (d2, w2) ->
+                                                repo.deleteRecurringCardPurchase(sub.id,
+                                                        () -> showSubscriptionsDialog(card),
+                                                        this::showError))
+                                        .setNegativeButton("Cancel", null)
+                                        .show();
+                            })
+                    .setPositiveButton("Add subscription", (d, w) -> showAddSubscriptionDialog(card))
+                    .setNegativeButton("Close", null)
+                    .show();
+        });
+    }
+
+    private void showAddSubscriptionDialog(CreditCardEntity card) {
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(getContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad * 2, pad, pad * 2, 0);
+
+        EditText inputDescription = new EditText(getContext());
+        inputDescription.setHint("Description (e.g. Netflix)");
+        inputDescription.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        layout.addView(inputDescription);
+
+        EditText inputAmount = new EditText(getContext());
+        inputAmount.setHint("Amount");
+        inputAmount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad;
+        inputAmount.setLayoutParams(lp);
+        layout.addView(inputAmount);
+
+        EditText inputDay = new EditText(getContext());
+        inputDay.setHint("Day of month (1–31)");
+        inputDay.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputDay.setLayoutParams(lp);
+        layout.addView(inputDay);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Add subscription to " + card.name)
+                .setView(layout)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", (d, w) -> {
+                    String desc = inputDescription.getText().toString().trim();
+                    Double amount = parseDoubleOrNull(inputAmount.getText().toString());
+                    Integer day = parseDay(inputDay.getText().toString());
+                    if (desc.isEmpty() || amount == null || day == null) {
+                        Toast.makeText(getContext(), "Description, amount, and day are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    repo.addRecurringCardPurchase(card.id, desc, amount, day,
+                            () -> showSubscriptionsDialog(card), this::showError);
+                })
+                .show();
     }
 
     private void showError(String error) {

@@ -22,12 +22,16 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
     private List<CreditCardEntity> items;
     /** Tapping the row logs a purchase -- the common case, day to day. */
     private final OnItemClick onLogPurchase;
+    /** The subscriptions icon manages recurring charges on this card. */
+    private final OnItemClick onSubscriptions;
     /** The edit icon is the rare-case path to changing the card's own parameters. */
     private final OnItemClick onEdit;
 
-    public CreditCardAdapter(List<CreditCardEntity> items, OnItemClick onLogPurchase, OnItemClick onEdit) {
+    public CreditCardAdapter(List<CreditCardEntity> items, OnItemClick onLogPurchase,
+                             OnItemClick onSubscriptions, OnItemClick onEdit) {
         this.items = items;
         this.onLogPurchase = onLogPurchase;
+        this.onSubscriptions = onSubscriptions;
         this.onEdit = onEdit;
     }
 
@@ -50,6 +54,7 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
         String monthsLabel = card.paymentDueMonthOffset == 1 ? "1 month later" : card.paymentDueMonthOffset + " months later";
         holder.dates.setText("Statement " + Util.ordinal(card.statementDay) + " · Due " + Util.ordinal(card.paymentDueDay) + " (" + monthsLabel + ")");
         holder.itemView.setOnClickListener(v -> onLogPurchase.onClick(card));
+        holder.subscriptionsButton.setOnClickListener(v -> onSubscriptions.onClick(card));
         holder.editButton.setOnClickListener(v -> onEdit.onClick(card));
     }
 
@@ -60,12 +65,13 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView name, dates;
-        ImageButton editButton;
+        ImageButton subscriptionsButton, editButton;
 
         ViewHolder(View itemView) {
             super(itemView);
             name = itemView.findViewById(R.id.name);
             dates = itemView.findViewById(R.id.dates);
+            subscriptionsButton = itemView.findViewById(R.id.subscriptionsButton);
             editButton = itemView.findViewById(R.id.editButton);
         }
     }
