@@ -5,9 +5,11 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.Spinner;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
@@ -17,6 +19,9 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
+
+import java.text.DateFormatSymbols;
+import java.util.Calendar;
 
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
@@ -35,6 +40,8 @@ public class ItemsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
     private RecurringItemAdapter adapter;
     private Repository repo;
+    private TextView monthLabel;
+    private int displayYear, displayMonth;
 
     private List<CategoryEntity> categories = new ArrayList<>();
     private List<CreditCardEntity> creditCards = new ArrayList<>();
@@ -50,11 +57,34 @@ public class ItemsFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
         repo = Repository.getInstance(requireContext());
 
+        Calendar now = Calendar.getInstance();
+        displayYear = now.get(Calendar.YEAR);
+        displayMonth = now.get(Calendar.MONTH) + 1;
+
+        monthLabel = view.findViewById(R.id.monthLabel);
+        Button btnPrev = view.findViewById(R.id.btnPrevMonth);
+        Button btnNext = view.findViewById(R.id.btnNextMonth);
+        updateMonthLabel();
+
+        btnPrev.setOnClickListener(v -> {
+            displayMonth--;
+            if (displayMonth < 1) { displayMonth = 12; displayYear--; }
+            updateMonthLabel();
+            adapter.setMonth(displayYear, displayMonth);
+        });
+        btnNext.setOnClickListener(v -> {
+            displayMonth++;
+            if (displayMonth > 12) { displayMonth = 1; displayYear++; }
+            updateMonthLabel();
+            adapter.setMonth(displayYear, displayMonth);
+        });
+
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
-        adapter = new RecurringItemAdapter(new ArrayList<>(), this::showEditDialog);
+        adapter = new RecurringItemAdapter(new ArrayList<>(), this::showEditDialog,
+                displayYear, displayMonth);
         recyclerView.setAdapter(adapter);
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
@@ -82,6 +112,11 @@ public class ItemsFragment extends Fragment {
 
     private void maybeStopRefresh() {
         swipeRefresh.setRefreshing(false);
+    }
+
+    private void updateMonthLabel() {
+        String month = new DateFormatSymbols(java.util.Locale.UK).getMonths()[displayMonth - 1];
+        monthLabel.setText(month + " " + displayYear);
     }
 
     private void showEditDialog(@Nullable RecurringItemEntity existing) {

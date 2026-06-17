@@ -2,6 +2,8 @@ package com.quanglewangle.peter.cashflow;
 
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 
+import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.List;
 
 class Util {
@@ -45,6 +47,37 @@ class Util {
             if (card.id == creditCardId) return !card.name.equalsIgnoreCase(name == null ? "" : name.trim());
         }
         return true;
+    }
+
+    /** Day-of-month numbers when a four_weekly item falls in (year, month).
+     *  anchorDate is "YYYY-MM-DD". Returns empty array if no occurrence. */
+    static int[] fourWeeklyDaysInMonth(String anchorDate, int year, int month) {
+        if (anchorDate == null || anchorDate.length() < 10) return new int[0];
+        try {
+            String[] p = anchorDate.split("-");
+            Calendar anchor = Calendar.getInstance();
+            anchor.set(Integer.parseInt(p[0]), Integer.parseInt(p[1]) - 1, Integer.parseInt(p[2]), 0, 0, 0);
+            anchor.set(Calendar.MILLISECOND, 0);
+
+            Calendar monthStart = Calendar.getInstance();
+            monthStart.set(year, month - 1, 1, 0, 0, 0);
+            monthStart.set(Calendar.MILLISECOND, 0);
+
+            Calendar monthEnd = (Calendar) monthStart.clone();
+            monthEnd.add(Calendar.MONTH, 1);
+
+            Calendar cur = (Calendar) anchor.clone();
+            while (cur.before(monthStart)) cur.add(Calendar.DAY_OF_MONTH, 28);
+
+            ArrayList<Integer> days = new ArrayList<>();
+            while (cur.before(monthEnd)) {
+                days.add(cur.get(Calendar.DAY_OF_MONTH));
+                cur.add(Calendar.DAY_OF_MONTH, 28);
+            }
+            return days.stream().mapToInt(Integer::intValue).toArray();
+        } catch (Exception e) {
+            return new int[0];
+        }
     }
 
     /** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11-13 -> "th", etc. */
