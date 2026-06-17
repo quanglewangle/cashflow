@@ -88,13 +88,13 @@ public class ItemsFragment extends Fragment {
             loadBalance();
         });
 
-        view.findViewById(R.id.btnEntries).setOnClickListener(v -> {
+        view.findViewById(R.id.balanceSection).setOnClickListener(v -> {
             Intent intent = new Intent(getContext(), EntriesActivity.class);
             intent.putExtra(EntriesActivity.EXTRA_YEAR, displayYear);
             intent.putExtra(EntriesActivity.EXTRA_MONTH, displayMonth);
             startActivity(intent);
         });
-        view.findViewById(R.id.btnCheckpoints).setOnClickListener(v ->
+        view.findViewById(R.id.fabAdd).setOnClickListener(v ->
                 startActivity(new Intent(getContext(), BalanceCheckpointsActivity.class)));
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
@@ -102,10 +102,9 @@ public class ItemsFragment extends Fragment {
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         adapter = new RecurringItemAdapter(new ArrayList<>(), this::showEditDialog,
-                displayYear, displayMonth);
+                this::showCheckpointDialog, displayYear, displayMonth);
         recyclerView.setAdapter(adapter);
 
-        view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
         swipeRefresh.setOnRefreshListener(this::loadAll);
 
         loadAll();
@@ -148,9 +147,37 @@ public class ItemsFragment extends Fragment {
                         ForecastSummary s = result.get(0);
                         broughtFwd.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
                         carriedFwd.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
+                        adapter.setBroughtForward(s.broughtForward);
                     }
                     @Override public void onError(String error) {}
                 });
+    }
+
+    private void showCheckpointDialog(int day, double suggestedBalance) {
+        android.widget.EditText inputBalance = new android.widget.EditText(requireContext());
+        inputBalance.setInputType(android.text.InputType.TYPE_CLASS_NUMBER
+                | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL
+                | android.text.InputType.TYPE_NUMBER_FLAG_SIGNED);
+        inputBalance.setHint("Balance");
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        inputBalance.setPadding(pad, pad, pad, pad);
+        if (!Double.isNaN(suggestedBalance)) {
+            inputBalance.setText(String.format(Locale.UK, "%.2f", suggestedBalance));
+            inputBalance.selectAll();
+        }
+
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle("Record balance — " + Util.ordinal(day))
+                .setView(inputBalance)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    Double balance = parseDoubleOrNull(inputBalance.getText().toString());
+                    if (balance == null) return;
+                    repo.addCheckpoint(displayYear, displayMonth, day, balance,
+                            this::loadBalance,
+                            this::showError);
+                })
+                .setNegativeButton("Cancel", null)
+                .show();
     }
 
     private void showEditDialog(@Nullable RecurringItemEntity existing) {

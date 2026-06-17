@@ -1,25 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:paddingHorizontal="16dp"
-    android:paddingVertical="8dp"
+    android:paddingVertical="10dp"
     android:gravity="center_vertical"
-    android:background="?attr/selectableItemBackground"
+    android:background="#F0F0F0"
     android:clickable="true"
     android:focusable="true">
 
     <TextView
-        android:id="@+id/dueDay"
+        android:id="@+id/todayDay"
         android:layout_width="44dp"
         android:layout_height="wrap_content"
         android:gravity="center"
-        android:textSize="15sp"
+        android:textSize="13sp"
         android:textStyle="bold"
-        android:textColor="?attr/colorPrimary"
-        tools:text="1st" />
+        android:textColor="?attr/colorPrimary" />
 
     <LinearLayout
         android:layout_width="0dp"
@@ -28,35 +26,25 @@
         android:orientation="vertical">
 
         <TextView
-            android:id="@+id/name"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            tools:text="Council Tax" />
+            android:text="Today"
+            android:textSize="15sp"
+            android:textStyle="bold" />
 
         <TextView
-            android:id="@+id/subtitle"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textSize="13sp"
-            android:textColor="@color/planned"
-            tools:text="Committed · monthly · due 1st" />
-
-        <TextView
-            android:id="@+id/runningBalance"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:text="Tap to record checkpoint"
             android:textSize="12sp"
-            android:textColor="@color/planned"
-            android:visibility="gone"
-            tools:text="Balance: £985.41" />
+            android:textColor="?attr/colorPrimary" />
     </LinearLayout>
 
     <TextView
-        android:id="@+id/amount"
+        android:id="@+id/todayBalance"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:textSize="16sp"
-        tools:text="£200.00" />
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
 </LinearLayout>

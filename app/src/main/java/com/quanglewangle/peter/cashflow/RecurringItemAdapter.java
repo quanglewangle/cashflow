@@ -12,25 +12,44 @@ import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
 
-public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdapter.ViewHolder> {
+public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     public interface OnItemClick {
         void onClick(RecurringItemEntity item);
     }
 
-    private List<RecurringItemEntity> items;
+    public interface OnTodayClick {
+        void onTodayClick(int day, double balance);
+    }
+
+    private static final int TYPE_ITEM  = 0;
+    private static final int TYPE_TODAY = 1;
+
+    private static class TodayMarker {
+        final int day;
+        final double balance;
+        TodayMarker(int day, double balance) { this.day = day; this.balance = balance; }
+    }
+
+    private List<RecurringItemEntity> items = new ArrayList<>();
+    private List<Object> displayRows = new ArrayList<>(); // RecurringItemEntity or TodayMarker
+    private double[] runningBalances = new double[0];    // parallel to items, not displayRows
+    private double broughtForward = Double.NaN;
     private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
+    private final OnTodayClick onTodayClick;
     private int displayYear;
     private int displayMonth;
 
     public RecurringItemAdapter(List<RecurringItemEntity> items, OnItemClick onClick,
-                                int displayYear, int displayMonth) {
+                                OnTodayClick onTodayClick, int displayYear, int displayMonth) {
         this.onClick = onClick;
+        this.onTodayClick = onTodayClick;
         this.displayYear = displayYear;
         this.displayMonth = displayMonth;
         setItems(items);
@@ -41,10 +60,18 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
         notifyDataSetChanged();
     }
 
+    public void setBroughtForward(double broughtForward) {
+        this.broughtForward = broughtForward;
+        recomputeRunningBalances();
+        buildDisplayRows();
+        notifyDataSetChanged();
+    }
+
     public void setMonth(int year, int month) {
         this.displayYear = year;
         this.displayMonth = month;
-        setItems(items); // re-sort for new month
+        this.broughtForward = Double.NaN;
+        setItems(items);
     }
 
     public void setItems(List<RecurringItemEntity> items) {
@@ -53,7 +80,57 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
             int d = effectiveDay(i);
             return d > 0 ? d : Integer.MAX_VALUE;
         }));
+        recomputeRunningBalances();
+        buildDisplayRows();
         notifyDataSetChanged();
+    }
+
+    private void recomputeRunningBalances() {
+        runningBalances = new double[items.size()];
+        double balance = Double.isNaN(broughtForward) ? Double.NaN : broughtForward;
+        for (int i = 0; i < items.size(); i++) {
+            RecurringItemEntity item = items.get(i);
+            if (!Double.isNaN(balance) && effectiveDay(item) > 0 && item.defaultAmount != null) {
+                if ("income".equals(item.itemType)) balance += item.defaultAmount;
+                else balance -= item.defaultAmount;
+            }
+            runningBalances[i] = balance;
+        }
+    }
+
+    private void buildDisplayRows() {
+        displayRows = new ArrayList<>();
+        Calendar now = Calendar.getInstance();
+        boolean isCurrentMonth = displayYear == now.get(Calendar.YEAR)
+                && displayMonth == now.get(Calendar.MONTH) + 1;
+        int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        boolean todayInserted = false;
+
+        for (int i = 0; i < items.size(); i++) {
+            RecurringItemEntity item = items.get(i);
+            int day = effectiveDay(item);
+
+            if (isCurrentMonth && !todayInserted && (day < 0 || day > todayDay)) {
+                displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
+                todayInserted = true;
+            }
+            displayRows.add(item);
+        }
+        if (isCurrentMonth && !todayInserted) {
+            displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
+        }
+    }
+
+    /** Running balance after all items with effectiveDay in [1, todayDay]. */
+    private double todayBalance(int todayDay) {
+        double result = Double.isNaN(broughtForward) ? Double.NaN : broughtForward;
+        for (int i = 0; i < items.size(); i++) {
+            int day = effectiveDay(items.get(i));
+            if (day > 0 && day <= todayDay && !Double.isNaN(runningBalances[i])) {
+                result = runningBalances[i];
+            }
+        }
+        return result;
     }
 
     /** Returns the day-of-month this item falls on in (displayYear, displayMonth),
@@ -94,7 +171,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
             if (days.length == 0) return "—";
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < days.length; i++) {
-                if (i > 0) sb.append(", ") ;
+                if (i > 0) sb.append(", ");
                 sb.append(Util.ordinal(days[i]));
             }
             return sb.toString();
@@ -103,30 +180,67 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
         return d > 0 ? Util.ordinal(d) : "—";
     }
 
+    @Override
+    public int getItemViewType(int position) {
+        return displayRows.get(position) instanceof TodayMarker ? TYPE_TODAY : TYPE_ITEM;
+    }
+
     @NonNull
     @Override
-    public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_recurring_item, parent, false);
-        return new ViewHolder(v);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        LayoutInflater inf = LayoutInflater.from(parent.getContext());
+        if (viewType == TYPE_TODAY) {
+            View v = inf.inflate(R.layout.item_today_divider, parent, false);
+            return new TodayViewHolder(v);
+        }
+        View v = inf.inflate(R.layout.item_recurring_item, parent, false);
+        return new ItemViewHolder(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-        RecurringItemEntity item = items.get(position);
-        holder.name.setText(item.name + (item.active ? "" : " (inactive)"));
-        holder.dueDay.setText(effectiveDayLabel(item));
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof TodayViewHolder) {
+            TodayMarker marker = (TodayMarker) displayRows.get(position);
+            TodayViewHolder tvh = (TodayViewHolder) holder;
+            tvh.todayDay.setText(Util.ordinal(marker.day));
+            if (!Double.isNaN(marker.balance)) {
+                tvh.todayBalance.setText(String.format(Locale.UK, "£%.2f", marker.balance));
+            } else {
+                tvh.todayBalance.setText("");
+            }
+            tvh.itemView.setOnClickListener(v -> onTodayClick.onTodayClick(marker.day, marker.balance));
+            return;
+        }
+
+        RecurringItemEntity item = (RecurringItemEntity) displayRows.get(position);
+        // find index in items list to look up running balance
+        int itemIndex = items.indexOf(item);
+
+        ItemViewHolder ivh = (ItemViewHolder) holder;
+        ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
+        ivh.dueDay.setText(effectiveDayLabel(item));
 
         StringBuilder subtitle = new StringBuilder(item.frequency);
         if ("annual".equals(item.frequency) && item.targetMonth != null) {
             subtitle.append(" · ").append(monthName(item.targetMonth));
         }
-        holder.subtitle.setText(subtitle.toString());
+        ivh.subtitle.setText(subtitle.toString());
 
-        holder.amount.setText(item.defaultAmount != null
+        ivh.amount.setText(item.defaultAmount != null
                 ? String.format(Locale.UK, "£%.2f", item.defaultAmount) : "—");
         boolean paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
-        holder.amount.setTextColor(Util.colorForAmount(holder.itemView.getContext(), item.itemType, paidByCard));
-        holder.itemView.setOnClickListener(v -> onClick.onClick(item));
+        ivh.amount.setTextColor(Util.colorForAmount(ivh.itemView.getContext(), item.itemType, paidByCard));
+
+        double bal = (itemIndex >= 0 && itemIndex < runningBalances.length)
+                ? runningBalances[itemIndex] : Double.NaN;
+        if (!Double.isNaN(bal) && effectiveDay(item) > 0) {
+            ivh.runningBalance.setVisibility(View.VISIBLE);
+            ivh.runningBalance.setText(String.format(Locale.UK, "Balance: £%.2f", bal));
+        } else {
+            ivh.runningBalance.setVisibility(View.GONE);
+        }
+
+        ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
     }
 
     private String monthName(int month) {
@@ -136,18 +250,29 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecurringItemAdap
 
     @Override
     public int getItemCount() {
-        return items.size();
+        return displayRows.size();
     }
 
-    static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView dueDay, name, subtitle, amount;
+    static class ItemViewHolder extends RecyclerView.ViewHolder {
+        TextView dueDay, name, subtitle, amount, runningBalance;
 
-        ViewHolder(View itemView) {
+        ItemViewHolder(View itemView) {
             super(itemView);
             dueDay = itemView.findViewById(R.id.dueDay);
             name = itemView.findViewById(R.id.name);
             subtitle = itemView.findViewById(R.id.subtitle);
             amount = itemView.findViewById(R.id.amount);
+            runningBalance = itemView.findViewById(R.id.runningBalance);
+        }
+    }
+
+    static class TodayViewHolder extends RecyclerView.ViewHolder {
+        TextView todayDay, todayBalance;
+
+        TodayViewHolder(View itemView) {
+            super(itemView);
+            todayDay = itemView.findViewById(R.id.todayDay);
+            todayBalance = itemView.findViewById(R.id.todayBalance);
         }
     }
 }
