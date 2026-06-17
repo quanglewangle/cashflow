@@ -41,30 +41,6 @@
             tools:text="Carried fwd: £807.54" />
     </LinearLayout>
 
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="horizontal"
-        android:layout_marginTop="2dp">
-
-        <TextView
-            android:id="@+id/income"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@color/income"
-            tools:text="Income: £1,782.54" />
-
-        <TextView
-            android:id="@+id/expense"
-            android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_weight="1"
-            android:textColor="@color/negative"
-            android:gravity="end"
-            tools:text="Expense: £975.00" />
-    </LinearLayout>
-
     <View
         android:layout_width="match_parent"
         android:layout_height="1dp"

@@ -47,8 +47,6 @@ public class ForecastAdapter extends RecyclerView.Adapter<ForecastAdapter.ViewHo
         holder.periodLabel.setText(month + " " + s.periodYear);
         holder.broughtForward.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
         holder.carriedForward.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
-        holder.income.setText(String.format(Locale.UK, "Income: £%.2f", s.income));
-        holder.expense.setText(String.format(Locale.UK, "Expense: £%.2f", s.expense + s.savings));
         holder.itemView.setOnClickListener(v -> onClick.onClick(s));
     }
 
@@ -58,15 +56,13 @@ public class ForecastAdapter extends RecyclerView.Adapter<ForecastAdapter.ViewHo
     }
 
     static class ViewHolder extends RecyclerView.ViewHolder {
-        TextView periodLabel, broughtForward, carriedForward, income, expense;
+        TextView periodLabel, broughtForward, carriedForward;
 
         ViewHolder(View itemView) {
             super(itemView);
             periodLabel = itemView.findViewById(R.id.periodLabel);
             broughtForward = itemView.findViewById(R.id.broughtForward);
             carriedForward = itemView.findViewById(R.id.carriedForward);
-            income = itemView.findViewById(R.id.income);
-            expense = itemView.findViewById(R.id.expense);
         }
     }
 }
