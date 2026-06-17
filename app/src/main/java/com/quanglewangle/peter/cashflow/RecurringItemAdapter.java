@@ -8,6 +8,7 @@ import android.widget.TextView;
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
@@ -29,8 +30,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         void onTodayClick(int day, double balance);
     }
 
-    private static final int TYPE_ITEM  = 0;
-    private static final int TYPE_TODAY = 1;
+    private static final int TYPE_ITEM          = 0;
+    private static final int TYPE_TODAY         = 1;
+    private static final int TYPE_CARD_PURCHASE = 2;
 
     private static class TodayMarker {
         final int day;
@@ -40,6 +42,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     private List<RecurringItemEntity> items = new ArrayList<>();
     private List<EntryEntity> oneOffEntries = new ArrayList<>();
+    private List<CardPurchase> cardPurchases = new ArrayList<>();
+    // Maps recurringItemId → entry plannedAmount for the displayed month.
+    // When present, overrides the recurring item's defaultAmount in the running balance.
+    private java.util.Map<Long, Double> entryAmounts = new java.util.HashMap<>();
 
     // sortedContentRows = RecurringItemEntity | EntryEntity, sorted by day
     private List<Object> sortedContentRows = new ArrayList<>();
@@ -96,6 +102,24 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         rebuild();
     }
 
+    public void setCardPurchases(List<CardPurchase> purchases) {
+        this.cardPurchases = new ArrayList<>(purchases);
+        rebuild();
+    }
+
+    /** Pass all entries for the displayed month so recurring items use their
+     *  actual planned amount (reflecting real purchases) instead of the default. */
+    public void setEntryAmounts(List<EntryEntity> allEntries) {
+        entryAmounts = new java.util.HashMap<>();
+        for (EntryEntity e : allEntries) {
+            if (e.recurringItemId != null) {
+                double amount = e.actualAmount != null ? e.actualAmount : e.plannedAmount;
+                entryAmounts.put(e.recurringItemId, amount);
+            }
+        }
+        rebuild();
+    }
+
     public double getChainedBroughtForward() {
         return computeChainedBroughtForward();
     }
@@ -124,6 +148,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         for (EntryEntity e : oneOffEntries) {
             sortedContentRows.add(e);
         }
+        for (CardPurchase p : cardPurchases) {
+            sortedContentRows.add(p);
+        }
         sortedContentRows.sort(Comparator.comparingInt(this::dayOf));
     }
 
@@ -132,6 +159,13 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         if (row instanceof EntryEntity) {
             EntryEntity e = (EntryEntity) row;
             return e.dueDay != null ? e.dueDay : 32; // after all dated items
+        }
+        if (row instanceof CardPurchase) {
+            CardPurchase p = (CardPurchase) row;
+            if (p.purchaseDate != null && p.purchaseDate.length() >= 10) {
+                try { return Integer.parseInt(p.purchaseDate.substring(8, 10)); }
+                catch (NumberFormatException ignored) {}
+            }
         }
         return 32;
     }
@@ -230,12 +264,15 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private double effectiveAmount(Object row) {
         if (row instanceof RecurringItemEntity) {
             RecurringItemEntity item = (RecurringItemEntity) row;
+            Double entryAmount = entryAmounts.get(item.id);
+            if (entryAmount != null) return entryAmount;
             return item.defaultAmount != null ? item.defaultAmount : Double.NaN;
         }
         if (row instanceof EntryEntity) {
             EntryEntity e = (EntryEntity) row;
             return e.actualAmount != null ? e.actualAmount : e.plannedAmount;
         }
+        // CardPurchase: informational only, never affects running balance
         return Double.NaN;
     }
 
@@ -298,7 +335,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     @Override
     public int getItemViewType(int position) {
-        return displayRows.get(position) instanceof TodayMarker ? TYPE_TODAY : TYPE_ITEM;
+        Object row = displayRows.get(position);
+        if (row instanceof TodayMarker) return TYPE_TODAY;
+        if (row instanceof CardPurchase) return TYPE_CARD_PURCHASE;
+        return TYPE_ITEM;
     }
 
     @NonNull
@@ -309,6 +349,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             View v = inf.inflate(R.layout.item_today_divider, parent, false);
             return new TodayViewHolder(v);
         }
+        // TYPE_ITEM and TYPE_CARD_PURCHASE both use the same layout
         View v = inf.inflate(R.layout.item_recurring_item, parent, false);
         return new ItemViewHolder(v);
     }
@@ -331,6 +372,34 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         int idx = sortedContentRows.indexOf(row);
         double bal = (idx >= 0 && idx < runningBalances.length) ? runningBalances[idx] : Double.NaN;
 
+        android.content.Context ctx = ivh.itemView.getContext();
+
+        if (row instanceof CardPurchase) {
+            CardPurchase purchase = (CardPurchase) row;
+            int grey = ctx.getColor(R.color.planned);
+            ivh.name.setText(purchase.description);
+            ivh.name.setTextColor(grey);
+            int day = dayOf(purchase);
+            ivh.dueDay.setText(day <= 31 ? Util.ordinal(day) : "—");
+            ivh.dueDay.setTextColor(grey);
+            String cardName = "";
+            for (CreditCardEntity c : creditCards) {
+                if (c.id == purchase.creditCardId) { cardName = c.name; break; }
+            }
+            ivh.subtitle.setText(cardName);
+            ivh.subtitle.setTextColor(grey);
+            ivh.amount.setText(String.format(Locale.UK, "£%.2f", purchase.amount));
+            ivh.amount.setTextColor(grey);
+            ivh.runningBalance.setVisibility(View.GONE);
+            ivh.itemView.setOnClickListener(null);
+            return;
+        }
+
+        // Reset colors that may have been greyed by a recycled card purchase row
+        ivh.name.setTextColor(ctx.getColor(android.R.color.black));
+        ivh.dueDay.setTextColor(ctx.getColor(R.color.colorPrimary));
+        ivh.subtitle.setTextColor(ctx.getColor(R.color.planned));
+
         if (row instanceof RecurringItemEntity) {
             RecurringItemEntity item = (RecurringItemEntity) row;
             ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
@@ -340,10 +409,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                 subtitle.append(" · ").append(monthName(item.targetMonth));
             }
             ivh.subtitle.setText(subtitle.toString());
-            ivh.amount.setText(item.defaultAmount != null
-                    ? String.format(Locale.UK, "£%.2f", item.defaultAmount) : "—");
+            double dispAmount = effectiveAmount(item);
+            ivh.amount.setText(!Double.isNaN(dispAmount)
+                    ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");
             boolean paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
-            ivh.amount.setTextColor(Util.colorForAmount(ivh.itemView.getContext(), item.itemType, paidByCard));
+            ivh.amount.setTextColor(Util.colorForAmount(ctx, item.itemType, paidByCard));
             ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
         } else if (row instanceof EntryEntity) {
             EntryEntity entry = (EntryEntity) row;
@@ -354,7 +424,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             double amount = effectiveAmount(entry);
             ivh.amount.setText(!Double.isNaN(amount)
                     ? String.format(Locale.UK, "£%.2f", amount) : "—");
-            ivh.amount.setTextColor(Util.colorForAmount(ivh.itemView.getContext(), entry.itemType, false));
+            ivh.amount.setTextColor(Util.colorForAmount(ctx, entry.itemType, false));
             ivh.itemView.setOnClickListener(null);
         }
 

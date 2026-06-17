@@ -105,6 +105,13 @@ public class Repository {
         });
     }
 
+    public void getCardPurchasesByMonth(int year, int month, ListCallback<CardPurchase> callback) {
+        api.getCardPurchasesByMonth(year, month, new ApiService.Callback<List<CardPurchase>>() {
+            @Override public void onSuccess(List<CardPurchase> result) { main.post(() -> callback.onResult(result, false)); }
+            @Override public void onError(String error) { /* silently ignore */ }
+        });
+    }
+
     /** Logs a real card purchase; not cached locally since it's a write-mostly log
      *  and its effect (the recalculated entry) is already covered by entry caching. */
     public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso,

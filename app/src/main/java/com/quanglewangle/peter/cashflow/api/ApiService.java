@@ -1,6 +1,7 @@
 package com.quanglewangle.peter.cashflow.api;
 
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
+import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
@@ -182,6 +183,30 @@ public class ApiService {
         c.paymentDueDay = o.optInt("payment_due_day");
         c.paymentDueMonthOffset = o.optInt("payment_due_month_offset", 1);
         return c;
+    }
+
+    public void getCardPurchasesByMonth(int year, int month, Callback<List<CardPurchase>> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "card-purchases?year=" + year + "&month=" + month)
+                .build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<CardPurchase> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) out.add(parseCardPurchase(arr.optJSONObject(i)));
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    private CardPurchase parseCardPurchase(JSONObject o) {
+        CardPurchase p = new CardPurchase();
+        p.id = o.optLong("id");
+        p.creditCardId = o.optLong("credit_card_id");
+        p.description = o.optString("description");
+        p.amount = o.optDouble("amount", 0);
+        p.purchaseDate = o.optString("purchase_date");
+        return p;
     }
 
     /** Logs a real purchase against a card; the server recalculates that purchase's

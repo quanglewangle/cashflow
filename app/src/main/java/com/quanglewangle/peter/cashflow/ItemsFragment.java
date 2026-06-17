@@ -26,6 +26,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
+import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
@@ -98,6 +99,8 @@ public class ItemsFragment extends Fragment {
             updateMonthLabel();
             adapter.setMonth(displayYear, displayMonth);
             adapter.setOneOffEntries(new ArrayList<>());
+            adapter.setEntryAmounts(new ArrayList<>());
+            adapter.setCardPurchases(new ArrayList<>());
             loadBalance();
             loadEntries();
         });
@@ -107,6 +110,8 @@ public class ItemsFragment extends Fragment {
             updateMonthLabel();
             adapter.setMonth(displayYear, displayMonth);
             adapter.setOneOffEntries(new ArrayList<>());
+            adapter.setEntryAmounts(new ArrayList<>());
+            adapter.setCardPurchases(new ArrayList<>());
             loadBalance();
             loadEntries();
         });
@@ -166,7 +171,12 @@ public class ItemsFragment extends Fragment {
                 if (e.recurringItemId == null) oneOffs.add(e);
             }
             adapter.setOneOffEntries(oneOffs);
+            adapter.setEntryAmounts(entries);
             updateBalanceLabels();
+        });
+        repo.getCardPurchasesByMonth(displayYear, displayMonth, (purchases, fromCache) -> {
+            if (getContext() == null) return;
+            adapter.setCardPurchases(purchases);
         });
     }
 
