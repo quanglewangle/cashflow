@@ -130,6 +130,7 @@ public class ItemsFragment extends Fragment {
 
         adapter = new RecurringItemAdapter(new ArrayList<>(), this::showEditDialog,
                 this::showCheckpointDialog, displayYear, displayMonth);
+        adapter.setOnCardPurchaseClick(this::showEditCardPurchaseDialog);
         recyclerView.setAdapter(adapter);
 
         swipeRefresh.setOnRefreshListener(this::loadAll);
@@ -365,6 +366,88 @@ public class ItemsFragment extends Fragment {
         }
 
         builder.show();
+    }
+
+    private void showEditCardPurchaseDialog(CardPurchase purchase) {
+        String datePart = purchase.purchaseDate != null && purchase.purchaseDate.length() >= 10
+                ? purchase.purchaseDate.substring(0, 10) : "";
+
+        View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_card_purchase, null);
+        EditText inputDescription = formView.findViewById(R.id.inputDescription);
+        EditText inputAmount = formView.findViewById(R.id.inputAmount);
+        EditText inputDate = formView.findViewById(R.id.inputDate);
+        inputDescription.setText(purchase.description);
+        inputAmount.setText(String.format(Locale.UK, "%.2f", purchase.amount));
+        inputDate.setText(datePart);
+
+        AlertDialog dialog = new AlertDialog.Builder(requireContext())
+                .setTitle("Edit purchase")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (d, w) -> {
+                    String desc = inputDescription.getText().toString().trim();
+                    Double amount = parseDoubleOrNull(inputAmount.getText().toString());
+                    String date = inputDate.getText().toString().trim();
+                    if (desc.isEmpty() || amount == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                        Toast.makeText(getContext(), "Description, amount, and a YYYY-MM-DD date are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    repo.updateCardPurchase(purchase.id, desc, amount, date,
+                            () -> refreshAfterPurchaseChange(purchase, date),
+                            this::showError);
+                })
+                .setNeutralButton("Delete", null)
+                .create();
+        dialog.show();
+        dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(v ->
+                new AlertDialog.Builder(requireContext())
+                        .setTitle("Delete this purchase?")
+                        .setMessage(purchase.description + " — £" + String.format(Locale.UK, "%.2f", purchase.amount))
+                        .setPositiveButton("Delete", (d2, w2) -> {
+                            dialog.dismiss();
+                            repo.deleteCardPurchase(purchase.id,
+                                    () -> refreshAfterPurchaseChange(purchase, null),
+                                    this::showError);
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show());
+    }
+
+    private void refreshAfterPurchaseChange(CardPurchase purchase, @Nullable String newDate) {
+        loadEntries();
+        // Silently refresh payment period entry cache so the card bill total is current
+        CreditCardEntity card = null;
+        for (CreditCardEntity c : creditCards) {
+            if (c.id == purchase.creditCardId) { card = c; break; }
+        }
+        if (card != null && purchase.purchaseDate != null && purchase.purchaseDate.length() >= 10) {
+            String oldDate = purchase.purchaseDate.substring(0, 10);
+            int[] oldPeriod = paymentPeriodFor(card, oldDate);
+            repo.loadPeriod(oldPeriod[0], oldPeriod[1], (entries, fromCache) -> {});
+            if (newDate != null && !newDate.equals(oldDate)) {
+                int[] newPeriod = paymentPeriodFor(card, newDate);
+                repo.loadPeriod(newPeriod[0], newPeriod[1], (entries, fromCache) -> {});
+            }
+        }
+    }
+
+    private int[] paymentPeriodFor(CreditCardEntity card, String dateIso) {
+        int year, month, day;
+        try {
+            year  = Integer.parseInt(dateIso.substring(0, 4));
+            month = Integer.parseInt(dateIso.substring(5, 7));
+            day   = Integer.parseInt(dateIso.substring(8, 10));
+        } catch (Exception e) {
+            java.util.Calendar now = java.util.Calendar.getInstance();
+            year  = now.get(java.util.Calendar.YEAR);
+            month = now.get(java.util.Calendar.MONTH) + 1;
+            day   = now.get(java.util.Calendar.DAY_OF_MONTH);
+        }
+        if (day > card.statementDay) { month++; if (month > 12) { month = 1; year++; } }
+        for (int i = 0; i < card.paymentDueMonthOffset; i++) {
+            month++; if (month > 12) { month = 1; year++; }
+        }
+        return new int[]{year, month};
     }
 
     private void showError(String error) {

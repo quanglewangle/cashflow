@@ -30,6 +30,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         void onTodayClick(int day, double balance);
     }
 
+    public interface OnCardPurchaseClick {
+        void onClick(CardPurchase purchase);
+    }
+
     private static final int TYPE_ITEM          = 0;
     private static final int TYPE_TODAY         = 1;
     private static final int TYPE_CARD_PURCHASE = 2;
@@ -61,6 +65,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
     private final OnTodayClick onTodayClick;
+    private OnCardPurchaseClick onCardPurchaseClick;
     private int displayYear;
     private int displayMonth;
 
@@ -76,6 +81,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     public void setCreditCards(List<CreditCardEntity> creditCards) {
         this.creditCards = creditCards;
         notifyDataSetChanged();
+    }
+
+    public void setOnCardPurchaseClick(OnCardPurchaseClick listener) {
+        this.onCardPurchaseClick = listener;
     }
 
     public void setCheckpoint(int year, int month, int day, double balance) {
@@ -391,7 +400,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.amount.setText(String.format(Locale.UK, "£%.2f", purchase.amount));
             ivh.amount.setTextColor(grey);
             ivh.runningBalance.setVisibility(View.GONE);
-            ivh.itemView.setOnClickListener(null);
+            ivh.itemView.setOnClickListener(onCardPurchaseClick != null
+                    ? v -> onCardPurchaseClick.onClick(purchase) : null);
             return;
         }
 

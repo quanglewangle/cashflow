@@ -209,6 +209,20 @@ public class ApiService {
         return p;
     }
 
+    public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso, Callback<Void> callback) {
+        JSONObject body = new JSONObject();
+        set(body, "description", description);
+        set(body, "amount", amount);
+        set(body, "purchase_date", purchaseDateIso);
+        Request request = authed(new Request.Builder().url(BASE_URL + "card-purchases/" + id).put(jsonBody(body))).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    public void deleteCardPurchase(long id, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "card-purchases/" + id).delete()).build();
+        enqueue(request, voidCallback(callback));
+    }
+
     /** Logs a real purchase against a card; the server recalculates that purchase's
      *  payment-period entry from the running total of everything logged for it. */
     public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso, Callback<Long> callback) {

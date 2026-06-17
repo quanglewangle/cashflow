@@ -112,6 +112,21 @@ public class Repository {
         });
     }
 
+    public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso,
+                                    Runnable onDone, ErrorCallback onError) {
+        api.updateCardPurchase(id, description, amount, purchaseDateIso, new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
+    public void deleteCardPurchase(long id, Runnable onDone, ErrorCallback onError) {
+        api.deleteCardPurchase(id, new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
     /** Logs a real card purchase; not cached locally since it's a write-mostly log
      *  and its effect (the recalculated entry) is already covered by entry caching. */
     public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso,
