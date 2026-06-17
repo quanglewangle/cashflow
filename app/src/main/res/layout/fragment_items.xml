@@ -24,6 +24,7 @@
             android:layout_height="48dp"
             android:text="&#8249;"
             android:textSize="22sp"
+            android:textColor="?attr/colorPrimary"
             android:padding="0dp" />
 
         <TextView
@@ -42,6 +43,7 @@
             android:layout_height="48dp"
             android:text="&#8250;"
             android:textSize="22sp"
+            android:textColor="?attr/colorPrimary"
             android:padding="0dp" />
     </LinearLayout>
 
