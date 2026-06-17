@@ -157,12 +157,14 @@ public class ItemsFragment extends Fragment {
             @Override public void onSuccess(List<BalanceCheckpoint> checkpoints) {
                 if (getContext() == null) return;
                 int latestDay = 0;
+                double latestBalance = Double.NaN;
                 for (BalanceCheckpoint cp : checkpoints) {
                     if (cp.periodYear == year && cp.periodMonth == month && cp.periodDay > latestDay) {
                         latestDay = cp.periodDay;
+                        latestBalance = cp.balance;
                     }
                 }
-                adapter.setCheckpointDay(latestDay);
+                adapter.setCheckpoint(latestDay, latestBalance);
             }
             @Override public void onError(String error) {}
         });

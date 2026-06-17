@@ -40,7 +40,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private List<Object> displayRows = new ArrayList<>(); // RecurringItemEntity or TodayMarker
     private double[] runningBalances = new double[0];    // parallel to items, not displayRows
     private double broughtForward = Double.NaN;
-    private int checkpointDay = 0; // latest checkpoint day-of-month in displayed month; 0 = none
+    private int checkpointDay = 0;
+    private double checkpointBalance = Double.NaN;
     private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
     private final OnTodayClick onTodayClick;
@@ -68,8 +69,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         notifyDataSetChanged();
     }
 
-    public void setCheckpointDay(int day) {
+    public void setCheckpoint(int day, double balance) {
         this.checkpointDay = day;
+        this.checkpointBalance = balance;
         recomputeRunningBalances();
         buildDisplayRows();
         notifyDataSetChanged();
@@ -80,6 +82,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         this.displayMonth = month;
         this.broughtForward = Double.NaN;
         this.checkpointDay = 0;
+        this.checkpointBalance = Double.NaN;
         setItems(items);
     }
 
@@ -96,7 +99,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     private void recomputeRunningBalances() {
         runningBalances = new double[items.size()];
-        double balance = Double.isNaN(broughtForward) ? Double.NaN : broughtForward;
+        // Seed from checkpoint balance if there is one, otherwise from brought-forward
+        double seed = (checkpointDay > 0 && !Double.isNaN(checkpointBalance))
+                ? checkpointBalance : broughtForward;
+        double balance = Double.isNaN(seed) ? Double.NaN : seed;
         for (int i = 0; i < items.size(); i++) {
             RecurringItemEntity item = items.get(i);
             int day = effectiveDay(item);
