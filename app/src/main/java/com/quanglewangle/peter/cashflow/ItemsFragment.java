@@ -133,6 +133,12 @@ public class ItemsFragment extends Fragment {
         loadBalance();
     }
 
+    @Override
+    public void onResume() {
+        super.onResume();
+        if (adapter != null) loadEntries();
+    }
+
     private void loadAll() {
         swipeRefresh.setRefreshing(true);
         repo.getCategories((cats, fromCache) -> {

@@ -18,7 +18,9 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
+import java.text.DateFormatSymbols;
 import java.util.ArrayList;
+import java.util.Locale;
 
 /** Manage credit cards: name + statement closing day + payment due day. */
 public class CardsFragment extends Fragment {
@@ -126,9 +128,17 @@ public class CardsFragment extends Fragment {
                         Toast.makeText(getContext(), "Description, amount, and a YYYY-MM-DD date are required", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    repo.addCardPurchase(card.id, description, amount, date,
-                            () -> Toast.makeText(getContext(), "Logged", Toast.LENGTH_SHORT).show(),
-                            this::showError);
+                    int[] period = paymentPeriodFor(card, date);
+                    int payYear = period[0], payMonth = period[1];
+                    repo.addCardPurchase(card.id, description, amount, date, () -> {
+                        // Refresh the payment month's entries so the updated amount is cached
+                        repo.loadPeriod(payYear, payMonth, (entries, fromCache) -> {});
+                        String monthName = new DateFormatSymbols(Locale.UK).getMonths()[payMonth - 1];
+                        if (getContext() != null)
+                            Toast.makeText(getContext(),
+                                    "Logged — " + card.name + " " + monthName + " payment updated",
+                                    Toast.LENGTH_LONG).show();
+                    }, this::showError);
                 })
                 .show();
     }
@@ -164,5 +174,27 @@ public class CardsFragment extends Fragment {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** Mirrors the Go backend's paymentPeriodFor: returns {year, month} of the bill payment. */
+    private int[] paymentPeriodFor(CreditCardEntity card, String dateIso) {
+        int year, month, day;
+        try {
+            year  = Integer.parseInt(dateIso.substring(0, 4));
+            month = Integer.parseInt(dateIso.substring(5, 7));
+            day   = Integer.parseInt(dateIso.substring(8, 10));
+        } catch (Exception e) {
+            java.util.Calendar now = java.util.Calendar.getInstance();
+            year  = now.get(java.util.Calendar.YEAR);
+            month = now.get(java.util.Calendar.MONTH) + 1;
+            day   = now.get(java.util.Calendar.DAY_OF_MONTH);
+        }
+        if (day > card.statementDay) {
+            month++; if (month > 12) { month = 1; year++; }
+        }
+        for (int i = 0; i < card.paymentDueMonthOffset; i++) {
+            month++; if (month > 12) { month = 1; year++; }
+        }
+        return new int[]{year, month};
     }
 }
