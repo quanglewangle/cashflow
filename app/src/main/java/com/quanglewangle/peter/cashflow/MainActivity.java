@@ -24,14 +24,12 @@ public class MainActivity extends AppCompatActivity {
         bottomNav.setOnItemSelectedListener(item -> {
             Fragment fragment;
             int id = item.getItemId();
-            if (id == R.id.nav_items) {
-                fragment = new ItemsFragment();
-            } else if (id == R.id.nav_cards) {
+            if (id == R.id.nav_cards) {
                 fragment = new CardsFragment();
             } else if (id == R.id.nav_grid) {
                 fragment = new GridFragment();
             } else {
-                fragment = new ForecastFragment();
+                fragment = new ItemsFragment();
             }
             showFragment(fragment);
             return true;

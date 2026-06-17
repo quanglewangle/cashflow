@@ -9,10 +9,6 @@
         android:icon="@drawable/ic_grid"
         android:title="Grid" />
     <item
-        android:id="@+id/nav_items"
-        android:icon="@drawable/ic_items"
-        android:title="Items" />
-    <item
         android:id="@+id/nav_cards"
         android:icon="@drawable/ic_cards"
         android:title="Cards" />

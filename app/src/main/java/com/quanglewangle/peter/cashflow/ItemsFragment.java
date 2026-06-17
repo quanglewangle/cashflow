@@ -1,5 +1,6 @@
 package com.quanglewangle.peter.cashflow;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -20,13 +21,17 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
-import java.text.DateFormatSymbols;
-import java.util.Calendar;
-
+import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
+import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 import com.quanglewangle.peter.cashflow.data.Repository;
+
+import java.text.DateFormatSymbols;
+import java.util.Calendar;
+import java.util.List;
+import java.util.Locale;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -40,7 +45,7 @@ public class ItemsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
     private RecurringItemAdapter adapter;
     private Repository repo;
-    private TextView monthLabel;
+    private TextView monthLabel, broughtFwd, carriedFwd;
     private int displayYear, displayMonth;
 
     private List<CategoryEntity> categories = new ArrayList<>();
@@ -62,6 +67,8 @@ public class ItemsFragment extends Fragment {
         displayMonth = now.get(Calendar.MONTH) + 1;
 
         monthLabel = view.findViewById(R.id.monthLabel);
+        broughtFwd = view.findViewById(R.id.broughtFwd);
+        carriedFwd = view.findViewById(R.id.carriedFwd);
         Button btnPrev = view.findViewById(R.id.btnPrevMonth);
         Button btnNext = view.findViewById(R.id.btnNextMonth);
         updateMonthLabel();
@@ -71,13 +78,24 @@ public class ItemsFragment extends Fragment {
             if (displayMonth < 1) { displayMonth = 12; displayYear--; }
             updateMonthLabel();
             adapter.setMonth(displayYear, displayMonth);
+            loadBalance();
         });
         btnNext.setOnClickListener(v -> {
             displayMonth++;
             if (displayMonth > 12) { displayMonth = 1; displayYear++; }
             updateMonthLabel();
             adapter.setMonth(displayYear, displayMonth);
+            loadBalance();
         });
+
+        view.findViewById(R.id.btnEntries).setOnClickListener(v -> {
+            Intent intent = new Intent(getContext(), EntriesActivity.class);
+            intent.putExtra(EntriesActivity.EXTRA_YEAR, displayYear);
+            intent.putExtra(EntriesActivity.EXTRA_MONTH, displayMonth);
+            startActivity(intent);
+        });
+        view.findViewById(R.id.btnCheckpoints).setOnClickListener(v ->
+                startActivity(new Intent(getContext(), BalanceCheckpointsActivity.class)));
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
@@ -91,6 +109,7 @@ public class ItemsFragment extends Fragment {
         swipeRefresh.setOnRefreshListener(this::loadAll);
 
         loadAll();
+        loadBalance();
     }
 
     private void loadAll() {
@@ -115,8 +134,23 @@ public class ItemsFragment extends Fragment {
     }
 
     private void updateMonthLabel() {
-        String month = new DateFormatSymbols(java.util.Locale.UK).getMonths()[displayMonth - 1];
+        String month = new DateFormatSymbols(Locale.UK).getMonths()[displayMonth - 1];
         monthLabel.setText(month + " " + displayYear);
+    }
+
+    private void loadBalance() {
+        broughtFwd.setText("");
+        carriedFwd.setText("");
+        repo.getForecastRange(displayYear, displayMonth, 1,
+                new ApiService.Callback<List<ForecastSummary>>() {
+                    @Override public void onSuccess(List<ForecastSummary> result) {
+                        if (result.isEmpty() || getContext() == null) return;
+                        ForecastSummary s = result.get(0);
+                        broughtFwd.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
+                        carriedFwd.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
+                    }
+                    @Override public void onError(String error) {}
+                });
     }
 
     private void showEditDialog(@Nullable RecurringItemEntity existing) {
