@@ -37,11 +37,18 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private static final int TYPE_ITEM          = 0;
     private static final int TYPE_TODAY         = 1;
     private static final int TYPE_CARD_PURCHASE = 2;
+    private static final int TYPE_CHECKPOINT    = 3;
 
     private static class TodayMarker {
         final int day;
         final double balance;
         TodayMarker(int day, double balance) { this.day = day; this.balance = balance; }
+    }
+
+    private static class CheckpointMarker {
+        final int day;
+        final double balance;
+        CheckpointMarker(int day, double balance) { this.day = day; this.balance = balance; }
     }
 
     private List<RecurringItemEntity> items = new ArrayList<>();
@@ -210,13 +217,23 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         int todayDay = now.get(Calendar.DAY_OF_MONTH);
         boolean todayInserted = false;
 
+        boolean hasCheckpointHere = checkpointYear == displayYear && checkpointMonth == displayMonth;
+        boolean checkpointInserted = false;
+
         for (Object row : sortedContentRows) {
             int day = dayOf(row);
+            if (hasCheckpointHere && !checkpointInserted && day >= checkpointDay) {
+                displayRows.add(new CheckpointMarker(checkpointDay, checkpointBalance));
+                checkpointInserted = true;
+            }
             if (isCurrentMonth && !todayInserted && day >= todayDay) {
                 displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
                 todayInserted = true;
             }
             displayRows.add(row);
+        }
+        if (hasCheckpointHere && !checkpointInserted) {
+            displayRows.add(new CheckpointMarker(checkpointDay, checkpointBalance));
         }
         if (isCurrentMonth && !todayInserted) {
             displayRows.add(new TodayMarker(todayDay, todayBalance(todayDay)));
@@ -346,6 +363,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     public int getItemViewType(int position) {
         Object row = displayRows.get(position);
         if (row instanceof TodayMarker) return TYPE_TODAY;
+        if (row instanceof CheckpointMarker) return TYPE_CHECKPOINT;
         if (row instanceof CardPurchase) return TYPE_CARD_PURCHASE;
         return TYPE_ITEM;
     }
@@ -357,6 +375,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         if (viewType == TYPE_TODAY) {
             View v = inf.inflate(R.layout.item_today_divider, parent, false);
             return new TodayViewHolder(v);
+        }
+        if (viewType == TYPE_CHECKPOINT) {
+            View v = inf.inflate(R.layout.item_checkpoint_divider, parent, false);
+            return new CheckpointViewHolder(v);
         }
         // TYPE_ITEM and TYPE_CARD_PURCHASE both use the same layout
         View v = inf.inflate(R.layout.item_recurring_item, parent, false);
@@ -374,6 +396,15 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             tvh.todayBalance.setText(!Double.isNaN(marker.balance)
                     ? String.format(Locale.UK, "£%.2f", marker.balance) : "");
             tvh.itemView.setOnClickListener(v -> onTodayClick.onTodayClick(marker.day, marker.balance));
+            return;
+        }
+
+        if (holder instanceof CheckpointViewHolder) {
+            CheckpointMarker marker = (CheckpointMarker) row;
+            CheckpointViewHolder cvh = (CheckpointViewHolder) holder;
+            cvh.checkpointDay.setText(Util.ordinal(marker.day));
+            cvh.checkpointBalance.setText(String.format(Locale.UK, "£%.2f", marker.balance));
+            cvh.itemView.setOnClickListener(null);
             return;
         }
 
@@ -474,6 +505,15 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             super(itemView);
             todayDay = itemView.findViewById(R.id.todayDay);
             todayBalance = itemView.findViewById(R.id.todayBalance);
+        }
+    }
+
+    static class CheckpointViewHolder extends RecyclerView.ViewHolder {
+        TextView checkpointDay, checkpointBalance;
+        CheckpointViewHolder(View itemView) {
+            super(itemView);
+            checkpointDay = itemView.findViewById(R.id.checkpointDay);
+            checkpointBalance = itemView.findViewById(R.id.checkpointBalance);
         }
     }
 }

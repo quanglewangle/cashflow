@@ -410,9 +410,10 @@ public class ItemsFragment extends Fragment {
                     .setPositiveButton("Delete", (d2, w2) -> {
                         dialog.dismiss();
                         if (isRecurring) {
-                            // Delete template first (prevents regeneration), then instance
-                            repo.deleteRecurringCardPurchase(purchase.recurringPurchaseId, () ->
-                                    repo.deleteCardPurchase(purchase.id,
+                            // Delete instance first (triggers entry recalculation), then
+                            // template (ON DELETE CASCADE removes any other month instances)
+                            repo.deleteCardPurchase(purchase.id, () ->
+                                    repo.deleteRecurringCardPurchase(purchase.recurringPurchaseId,
                                             () -> refreshAfterPurchaseChange(purchase, null),
                                             this::showError),
                                     this::showError);
