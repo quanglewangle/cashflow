@@ -123,6 +123,7 @@ public class ItemsFragment extends Fragment {
             startActivity(intent);
         });
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
+        view.findViewById(R.id.fabAddPurchase).setOnClickListener(v -> showQuickAddPurchaseDialog());
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
@@ -472,6 +473,57 @@ public class ItemsFragment extends Fragment {
             month++; if (month > 12) { month = 1; year++; }
         }
         return new int[]{year, month};
+    }
+
+    private void showQuickAddPurchaseDialog() {
+        if (creditCards.isEmpty()) {
+            Toast.makeText(getContext(), "Still loading cards, try again in a moment", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_quick_add_purchase, null);
+        Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);
+        EditText inputDescription = formView.findViewById(R.id.inputDescription);
+        EditText inputAmount = formView.findViewById(R.id.inputAmount);
+        EditText inputDate = formView.findViewById(R.id.inputDate);
+
+        List<String> cardNames = new ArrayList<>();
+        for (CreditCardEntity c : creditCards) cardNames.add(c.name);
+        spinnerCard.setAdapter(new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, cardNames));
+
+        // Default to Visacard if present
+        for (int i = 0; i < creditCards.size(); i++) {
+            if (creditCards.get(i).name.equalsIgnoreCase("Visacard")) {
+                spinnerCard.setSelection(i);
+                break;
+            }
+        }
+
+        // Default date to today
+        Calendar now = Calendar.getInstance();
+        inputDate.setText(String.format(Locale.UK, "%04d-%02d-%02d",
+                now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH)));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Add purchase")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", (d, w) -> {
+                    CreditCardEntity card = creditCards.get(spinnerCard.getSelectedItemPosition());
+                    String desc = inputDescription.getText().toString().trim();
+                    Double amount = parseDoubleOrNull(inputAmount.getText().toString());
+                    String date = inputDate.getText().toString().trim();
+                    if (desc.isEmpty() || amount == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                        Toast.makeText(getContext(), "Description, amount, and date are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    repo.addCardPurchase(card.id, desc, amount, date, () -> {
+                        loadEntries();
+                        int[] period = paymentPeriodFor(card, date);
+                        repo.loadPeriod(period[0], period[1], (entries, fromCache) -> {});
+                    }, this::showError);
+                })
+                .show();
     }
 
     private void showError(String error) {
