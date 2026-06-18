@@ -27,19 +27,19 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
+import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
+import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
 import java.text.DateFormatSymbols;
+import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
-
-import java.util.ArrayList;
-import java.util.List;
 
 /** Manage the recurring-item templates (monthly / annual / irregular) that generate entries. */
 public class ItemsFragment extends Fragment {
@@ -205,6 +205,15 @@ public class ItemsFragment extends Fragment {
         carriedFwd.setText("");
         int year = displayYear;
         int month = displayMonth;
+        // Server-computed brought-forward as reliable fallback when no checkpoint chains to this month
+        repo.getForecastRange(year, month, 1, new ApiService.Callback<List<ForecastSummary>>() {
+            @Override public void onSuccess(List<ForecastSummary> result) {
+                if (getContext() == null || result.isEmpty()) return;
+                adapter.setBroughtForward(result.get(0).broughtForward);
+                updateBalanceLabels();
+            }
+            @Override public void onError(String error) {}
+        });
         repo.getCheckpoints(new ApiService.Callback<List<BalanceCheckpoint>>() {
             @Override public void onSuccess(List<BalanceCheckpoint> checkpoints) {
                 if (getContext() == null) return;

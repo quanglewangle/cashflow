@@ -57,6 +57,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     // Maps recurringItemId → entry plannedAmount for the displayed month.
     // When present, overrides the recurring item's defaultAmount in the running balance.
     private java.util.Map<Long, Double> entryAmounts = new java.util.HashMap<>();
+    // Maps recurringItemId → entry due_day for the displayed month.
+    // Entries can have a different due_day than the template (e.g. after a template edit),
+    // so we use the entry's day for positioning to match what the server uses.
+    private java.util.Map<Long, Integer> entryDueDays = new java.util.HashMap<>();
 
     // sortedContentRows = RecurringItemEntity | EntryEntity, sorted by day
     private List<Object> sortedContentRows = new ArrayList<>();
@@ -68,6 +72,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private int checkpointMonth = 0;
     private int checkpointDay = 0;
     private double checkpointBalance = Double.NaN;
+    // Server-computed brought-forward used as fallback when no checkpoint chains to this month
+    private double serverBroughtForward = Double.NaN;
 
     private List<CreditCardEntity> creditCards = new ArrayList<>();
     private final OnItemClick onClick;
@@ -102,6 +108,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         rebuild();
     }
 
+    public void setBroughtForward(double bf) {
+        this.serverBroughtForward = bf;
+        rebuild();
+    }
+
     public void setMonth(int year, int month) {
         this.displayYear = year;
         this.displayMonth = month;
@@ -127,10 +138,12 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
      *  actual planned amount (reflecting real purchases) instead of the default. */
     public void setEntryAmounts(List<EntryEntity> allEntries) {
         entryAmounts = new java.util.HashMap<>();
+        entryDueDays = new java.util.HashMap<>();
         for (EntryEntity e : allEntries) {
             if (e.recurringItemId != null) {
                 double amount = e.actualAmount != null ? e.actualAmount : e.plannedAmount;
                 entryAmounts.put(e.recurringItemId, amount);
+                if (e.dueDay != null) entryDueDays.put(e.recurringItemId, e.dueDay);
             }
         }
         rebuild();
@@ -253,22 +266,18 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     // ---- Chaining ----
 
     private double computeChainedBroughtForward() {
-        if (checkpointYear == 0 || Double.isNaN(checkpointBalance)) return Double.NaN;
+        if (checkpointYear == 0 || Double.isNaN(checkpointBalance)) return serverBroughtForward;
 
         int displayPeriod    = displayYear * 12 + displayMonth;
         int checkpointPeriod = checkpointYear * 12 + checkpointMonth;
 
         if (displayPeriod < checkpointPeriod) return Double.NaN;
+        // For the checkpoint's own month, anchor to the recorded balance.
         if (displayPeriod == checkpointPeriod) return checkpointBalance;
-
-        double balance = checkpointBalance + monthNet(checkpointYear, checkpointMonth, checkpointDay);
-        int y = checkpointYear, m = checkpointMonth + 1;
-        if (m > 12) { m = 1; y++; }
-        while (y * 12 + m < displayPeriod) {
-            balance += monthNet(y, m, 1);
-            m++; if (m > 12) { m = 1; y++; }
-        }
-        return balance;
+        // For any later month, the server's value is authoritative — it has real
+        // entry amounts for past periods; client-side monthNet() only knows template
+        // defaults and diverges from the carried-forward shown on the previous month.
+        return serverBroughtForward;
     }
 
     /** Net of active recurring items in (year, month) with effectiveDay >= fromDay. */
@@ -309,6 +318,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private int effectiveDay(RecurringItemEntity item) {
+        // Prefer the entry's actual due_day for the displayed month — it reflects any
+        // due-date changes made after entry generation, and matches what the server uses.
+        Integer entryDay = entryDueDays.get(item.id);
+        if (entryDay != null) return entryDay;
         return effectiveDayForMonth(item, displayYear, displayMonth);
     }
 
@@ -445,11 +458,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             RecurringItemEntity item = (RecurringItemEntity) row;
             ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
             ivh.dueDay.setText(effectiveDayLabel(item));
-            StringBuilder subtitle = new StringBuilder(item.frequency);
-            if ("annual".equals(item.frequency) && item.targetMonth != null) {
-                subtitle.append(" · ").append(monthName(item.targetMonth));
-            }
-            ivh.subtitle.setText(subtitle.toString());
+            String subtitle = "annual".equals(item.frequency)
+                    ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual") : "";
+            ivh.subtitle.setText(subtitle);
             double dispAmount = effectiveAmount(item);
             ivh.amount.setText(!Double.isNaN(dispAmount)
                     ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");

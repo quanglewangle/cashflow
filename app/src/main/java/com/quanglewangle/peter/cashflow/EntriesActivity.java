@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quanglewangle.peter.cashflow.api.ApiService;
+import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
@@ -65,12 +66,30 @@ public class EntriesActivity extends AppCompatActivity {
         repo.getCategories((cats, fromCache) -> categories = cats);
         loadForecast();
         loadEntries();
+        loadCheckpoint();
     }
 
     @Override
     public boolean onSupportNavigateUp() {
         finish();
         return true;
+    }
+
+    private void loadCheckpoint() {
+        repo.getCheckpoints(new ApiService.Callback<List<BalanceCheckpoint>>() {
+            @Override public void onSuccess(List<BalanceCheckpoint> checkpoints) {
+                int bestDay = 0;
+                double bestBalance = Double.NaN;
+                for (BalanceCheckpoint cp : checkpoints) {
+                    if (cp.periodYear == year && cp.periodMonth == month && cp.periodDay > bestDay) {
+                        bestDay = cp.periodDay;
+                        bestBalance = cp.balance;
+                    }
+                }
+                if (bestDay > 0) adapter.setCheckpoint(bestDay, bestBalance);
+            }
+            @Override public void onError(String error) {}
+        });
     }
 
     private void loadForecast() {
