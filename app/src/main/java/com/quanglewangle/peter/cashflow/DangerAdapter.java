@@ -78,20 +78,25 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
 
             // Find the first later month where repaying the loan won't breach -£1,000.
             // We use min_balance of that month minus the loan as the worst-case post-repay dip.
-            String repayMonth = null;
+            String repayText = null;
             for (int j = position + 1; j < rows.size(); j++) {
                 ForecastDanger later = rows.get(j);
                 if (later.minBalance - needed >= DANGER_THRESHOLD) {
-                    repayMonth = months[later.periodMonth - 1];
+                    String monthName = months[later.periodMonth - 1];
+                    if (later.minBalanceDay > 0) {
+                        repayText = "Repay from " + Util.ordinal(later.minBalanceDay) + " " + monthName;
+                    } else {
+                        repayText = "Repay from start of " + monthName;
+                    }
                     break;
                 }
             }
             vh.repayLabel.setVisibility(View.VISIBLE);
-            if (repayMonth != null) {
-                vh.repayLabel.setText("Repay in: " + repayMonth);
+            if (repayText != null) {
+                vh.repayLabel.setText(repayText);
                 vh.repayLabel.setTextColor(ctx.getColor(R.color.incurred));
             } else {
-                vh.repayLabel.setText("No safe repayment month within 6 months");
+                vh.repayLabel.setText("No safe repayment date within 6 months");
                 vh.repayLabel.setTextColor(ctx.getColor(R.color.colorSecondary));
             }
         } else {
