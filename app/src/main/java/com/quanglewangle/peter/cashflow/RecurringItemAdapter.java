@@ -458,6 +458,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         ivh.dueDay.setTextColor(ctx.getColor(R.color.colorPrimary));
         ivh.subtitle.setTextColor(ctx.getColor(R.color.planned));
 
+        boolean paidByCard = false;
         if (row instanceof RecurringItemEntity) {
             RecurringItemEntity item = (RecurringItemEntity) row;
             ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
@@ -468,7 +469,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             double dispAmount = effectiveAmount(item);
             ivh.amount.setText(!Double.isNaN(dispAmount)
                     ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");
-            boolean paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
+            paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
             ivh.amount.setTextColor(Util.colorForAmount(ctx, item.itemType, paidByCard));
             ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
         } else if (row instanceof EntryEntity) {
@@ -499,8 +500,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         int itemDay = dayOf(row);
         boolean isPast = isCurrentMonth && itemDay < todayDay && itemDay > 0;
         if (isPast) {
-            if (isIncurred(row)) {
-                // Paid — dim everything to indicate done
+            // Dim if: explicitly paid, billed to a card, or suppressed by a checkpoint (NaN balance)
+            if (isIncurred(row) || paidByCard || Double.isNaN(bal)) {
                 ivh.itemView.setAlpha(0.35f);
             } else {
                 // Overdue — full opacity but name in red

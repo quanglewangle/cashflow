@@ -13,6 +13,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 
 import java.util.ArrayList;
+import java.util.Calendar;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Locale;
@@ -44,11 +45,17 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     private double checkpointBalance = Double.NaN;
     private final OnMarkIncurred onMarkIncurred;
     private final OnDelete onDelete;
+    private int displayYear;
+    private int displayMonth;
 
-    public EntryAdapter(List<EntryEntity> items, OnMarkIncurred onMarkIncurred, OnDelete onDelete) {
+    public EntryAdapter(List<EntryEntity> items, OnMarkIncurred onMarkIncurred, OnDelete onDelete,
+                        int displayYear, int displayMonth) {
+        this.displayYear = displayYear;
+        this.displayMonth = displayMonth;
         this.onMarkIncurred = onMarkIncurred;
         this.onDelete = onDelete;
         setItems(items);
+
     }
 
     public void setBroughtForward(double broughtForward) {
@@ -164,6 +171,24 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         vh.markIncurredButton.setText(incurred ? "Edit" : (isIncome ? "Mark received" : "Mark paid"));
         vh.markIncurredButton.setOnClickListener(v -> onMarkIncurred.onClick(e));
         vh.itemView.setOnLongClickListener(v -> { onDelete.onDelete(e); return true; });
+
+        // Dim paid past entries; highlight overdue ones in red
+        Calendar now = Calendar.getInstance();
+        boolean isCurrentMonth = displayYear == now.get(Calendar.YEAR)
+                && displayMonth == now.get(Calendar.MONTH) + 1;
+        int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        int itemDay = e.dueDay != null ? e.dueDay : Integer.MAX_VALUE;
+        boolean isPast = isCurrentMonth && itemDay < todayDay;
+        if (isPast) {
+            if (incurred) {
+                vh.itemView.setAlpha(0.35f);
+            } else {
+                vh.itemView.setAlpha(1f);
+                vh.name.setTextColor(vh.itemView.getContext().getColor(R.color.negative));
+            }
+        } else {
+            vh.itemView.setAlpha(1f);
+        }
     }
 
     @Override

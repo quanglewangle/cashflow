@@ -57,7 +57,7 @@ public class EntriesActivity extends AppCompatActivity {
         RecyclerView recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this));
 
-        adapter = new EntryAdapter(new ArrayList<>(), this::showMarkIncurredDialog, this::showDeleteConfirmDialog);
+        adapter = new EntryAdapter(new ArrayList<>(), this::showMarkIncurredDialog, this::showDeleteConfirmDialog, year, month);
         recyclerView.setAdapter(adapter);
 
         findViewById(R.id.fabAdd).setOnClickListener(v -> showAddEntryDialog());
