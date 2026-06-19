@@ -126,6 +126,7 @@ public class ItemsFragment extends Fragment {
         });
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
         view.findViewById(R.id.fabAddPurchase).setOnClickListener(v -> showQuickAddPurchaseDialog());
+        view.findViewById(R.id.fabAddOneOff).setOnClickListener(v -> showAddOneOffDialog());
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
         RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
@@ -542,6 +543,56 @@ public class ItemsFragment extends Fragment {
                         loadEntries();
                         int[] period = paymentPeriodFor(card, date);
                         repo.loadPeriod(period[0], period[1], (entries, fromCache) -> {});
+                    }, this::showError);
+                })
+                .show();
+    }
+
+    private void showAddOneOffDialog() {
+        if (categories.isEmpty()) {
+            showError("Still loading, try again in a moment");
+            return;
+        }
+        android.view.View formView = getLayoutInflater().inflate(R.layout.dialog_add_entry, null);
+        EditText inputName = formView.findViewById(R.id.inputName);
+        Spinner spinnerCategory = formView.findViewById(R.id.spinnerCategory);
+        Spinner spinnerItemType = formView.findViewById(R.id.spinnerItemType);
+        EditText inputAmount = formView.findViewById(R.id.inputAmount);
+        EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
+
+        List<String> categoryNames = new ArrayList<>();
+        for (CategoryEntity c : categories) categoryNames.add(c.name);
+        spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
+        spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
+        // Default to income
+        spinnerItemType.setSelection(0);
+        // Default day to today
+        inputDueDay.setText(String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH)));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Add one-off entry")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", (dialog, which) -> {
+                    String name = inputName.getText().toString().trim();
+                    Double amount = parseDoubleOrNull(inputAmount.getText().toString());
+                    if (name.isEmpty() || amount == null) {
+                        showError("Description and amount are required");
+                        return;
+                    }
+                    EntryEntity entry = new EntryEntity();
+                    entry.recurringItemId = null;
+                    entry.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
+                    entry.periodYear = displayYear;
+                    entry.periodMonth = displayMonth;
+                    entry.name = name;
+                    entry.itemType = ITEM_TYPES[spinnerItemType.getSelectedItemPosition()];
+                    entry.plannedAmount = amount;
+                    entry.status = "planned";
+                    entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
+                    repo.addEntry(entry, () -> {
+                        loadEntries();
+                        loadBalance();
                     }, this::showError);
                 })
                 .show();
