@@ -471,6 +471,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                     ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");
             paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
             ivh.amount.setTextColor(Util.colorForAmount(ctx, item.itemType, paidByCard));
+            ivh.cardIcon.setVisibility(paidByCard ? View.VISIBLE : View.GONE);
             ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
         } else if (row instanceof EntryEntity) {
             EntryEntity entry = (EntryEntity) row;
@@ -482,6 +483,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.amount.setText(!Double.isNaN(amount)
                     ? String.format(Locale.UK, "£%.2f", amount) : "—");
             ivh.amount.setTextColor(Util.colorForAmount(ctx, entry.itemType, false));
+            ivh.cardIcon.setVisibility(View.GONE);
             ivh.itemView.setOnClickListener(null);
         }
 
@@ -559,6 +561,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     static class ItemViewHolder extends RecyclerView.ViewHolder {
         TextView dueDay, name, subtitle, amount, runningBalance;
+        android.widget.ImageView cardIcon;
         ItemViewHolder(View itemView) {
             super(itemView);
             dueDay = itemView.findViewById(R.id.dueDay);
@@ -566,6 +569,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             subtitle = itemView.findViewById(R.id.subtitle);
             amount = itemView.findViewById(R.id.amount);
             runningBalance = itemView.findViewById(R.id.runningBalance);
+            cardIcon = itemView.findViewById(R.id.cardIcon);
         }
     }
 
