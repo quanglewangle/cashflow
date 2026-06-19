@@ -162,6 +162,7 @@ public class ItemsFragment extends Fragment {
         repo.getRecurringItems((items, fromCache) -> {
             adapter.setItems(items);
             updateBalanceLabels();
+            updateNowBalance();
             if (!fromCache) maybeStopRefresh();
         });
         loadEntries();
@@ -182,6 +183,7 @@ public class ItemsFragment extends Fragment {
         repo.getCardPurchasesByMonth(displayYear, displayMonth, (purchases, fromCache) -> {
             if (getContext() == null) return;
             adapter.setCardPurchases(purchases);
+            updateNowBalance();
         });
     }
 
