@@ -49,6 +49,18 @@ class Util {
         return true;
     }
 
+    /** Last Monday-Friday of the given month (1-based month). */
+    static int lastWorkingDayOfMonth(int year, int month) {
+        Calendar cal = Calendar.getInstance();
+        cal.set(year, month - 1, 1);
+        cal.set(Calendar.DAY_OF_MONTH, cal.getActualMaximum(Calendar.DAY_OF_MONTH));
+        while (cal.get(Calendar.DAY_OF_WEEK) == Calendar.SATURDAY
+                || cal.get(Calendar.DAY_OF_WEEK) == Calendar.SUNDAY) {
+            cal.add(Calendar.DAY_OF_MONTH, -1);
+        }
+        return cal.get(Calendar.DAY_OF_MONTH);
+    }
+
     /** Day-of-month numbers when a four_weekly item falls in (year, month).
      *  anchorDate is "YYYY-MM-DD". Returns empty array if no occurrence. */
     static int[] fourWeeklyDaysInMonth(String anchorDate, int year, int month) {

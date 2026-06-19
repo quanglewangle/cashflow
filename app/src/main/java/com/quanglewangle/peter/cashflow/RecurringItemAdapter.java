@@ -348,6 +348,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                 }
                 return item.dueDay != null ? item.dueDay : -1;
             }
+            case "last_working_day":
+                return Util.lastWorkingDayOfMonth(year, month);
             case "annual": {
                 if (item.targetMonth != null && item.targetMonth == month) {
                     return item.dueDay != null ? item.dueDay : -1;
@@ -470,7 +472,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
             ivh.dueDay.setText(effectiveDayLabel(item));
             String subtitle = "annual".equals(item.frequency)
-                    ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual") : "";
+                    ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual")
+                    : "last_working_day".equals(item.frequency) ? "last working day" : "";
             ivh.subtitle.setText(subtitle);
             double dispAmount = effectiveAmount(item);
             ivh.amount.setText(!Double.isNaN(dispAmount)
