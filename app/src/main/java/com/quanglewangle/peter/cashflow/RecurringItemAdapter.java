@@ -448,6 +448,12 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.amount.setText(String.format(Locale.UK, "£%.2f", purchase.amount));
             ivh.amount.setTextColor(grey);
             ivh.runningBalance.setVisibility(View.GONE);
+            ivh.cardIcon.setVisibility(View.VISIBLE);
+            android.graphics.drawable.Drawable dcp =
+                    androidx.core.graphics.drawable.DrawableCompat.wrap(
+                            ctx.getDrawable(R.drawable.ic_cards)).mutate();
+            androidx.core.graphics.drawable.DrawableCompat.setTint(dcp, ctx.getColor(R.color.incurred));
+            ivh.cardIcon.setImageDrawable(dcp);
             ivh.itemView.setOnClickListener(onCardPurchaseClick != null
                     ? v -> onCardPurchaseClick.onClick(purchase) : null);
             return;
