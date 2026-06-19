@@ -61,6 +61,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     // Entries can have a different due_day than the template (e.g. after a template edit),
     // so we use the entry's day for positioning to match what the server uses.
     private java.util.Map<Long, Integer> entryDueDays = new java.util.HashMap<>();
+    // Maps recurringItemId → entry status ("planned" / "incurred") for the displayed month.
+    private java.util.Map<Long, String> entryStatuses = new java.util.HashMap<>();
 
     // sortedContentRows = RecurringItemEntity | EntryEntity, sorted by day
     private List<Object> sortedContentRows = new ArrayList<>();
@@ -139,11 +141,13 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     public void setEntryAmounts(List<EntryEntity> allEntries) {
         entryAmounts = new java.util.HashMap<>();
         entryDueDays = new java.util.HashMap<>();
+        entryStatuses = new java.util.HashMap<>();
         for (EntryEntity e : allEntries) {
             if (e.recurringItemId != null) {
                 double amount = e.actualAmount != null ? e.actualAmount : e.plannedAmount;
                 entryAmounts.put(e.recurringItemId, amount);
                 if (e.dueDay != null) entryDueDays.put(e.recurringItemId, e.dueDay);
+                if (e.status != null) entryStatuses.put(e.recurringItemId, e.status);
             }
         }
         rebuild();
@@ -486,6 +490,26 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         } else {
             ivh.runningBalance.setVisibility(View.GONE);
         }
+
+        // Visual treatment for past items
+        Calendar now = Calendar.getInstance();
+        boolean isCurrentMonth = displayYear == now.get(Calendar.YEAR)
+                && displayMonth == now.get(Calendar.MONTH) + 1;
+        int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        int itemDay = dayOf(row);
+        boolean isPast = isCurrentMonth && itemDay < todayDay && itemDay > 0;
+        if (isPast) {
+            if (isIncurred(row)) {
+                // Paid — dim everything to indicate done
+                ivh.itemView.setAlpha(0.35f);
+            } else {
+                // Overdue — full opacity but name in red
+                ivh.itemView.setAlpha(1f);
+                ivh.name.setTextColor(ctx.getColor(R.color.negative));
+            }
+        } else {
+            ivh.itemView.setAlpha(1f);
+        }
     }
 
     private String monthName(int month) {
@@ -493,12 +517,38 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         return month >= 1 && month <= 12 ? names[month - 1] : "";
     }
 
-    /** Today's running balance for the current month, or NaN if unavailable or viewing another month. */
+    /** Balance as of right now: all past items plus only today's items already marked incurred. */
     public double getTodayBalance() {
-        for (Object row : displayRows) {
-            if (row instanceof TodayMarker) return ((TodayMarker) row).balance;
+        Calendar now = Calendar.getInstance();
+        if (displayYear != now.get(Calendar.YEAR) || displayMonth != now.get(Calendar.MONTH) + 1)
+            return Double.NaN;
+        int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        // Start from the balance just before today's items
+        double result = computeChainedBroughtForward();
+        for (int i = 0; i < sortedContentRows.size(); i++) {
+            if (dayOf(sortedContentRows.get(i)) < todayDay && !Double.isNaN(runningBalances[i]))
+                result = runningBalances[i];
         }
-        return Double.NaN;
+        if (Double.isNaN(result)) return Double.NaN;
+        // Add only today's items that have actually been marked paid/received
+        for (Object row : sortedContentRows) {
+            if (dayOf(row) != todayDay) continue;
+            if (!isIncurred(row)) continue;
+            double amount = effectiveAmount(row);
+            if (!Double.isNaN(amount)) {
+                if (isIncome(row)) result += amount;
+                else result -= amount;
+            }
+        }
+        return result;
+    }
+
+    private boolean isIncurred(Object row) {
+        if (row instanceof RecurringItemEntity)
+            return "incurred".equals(entryStatuses.get(((RecurringItemEntity) row).id));
+        if (row instanceof EntryEntity)
+            return "incurred".equals(((EntryEntity) row).status);
+        return false;
     }
 
     @Override
