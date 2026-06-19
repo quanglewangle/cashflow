@@ -495,11 +495,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     /** Today's running balance for the current month, or NaN if unavailable or viewing another month. */
     public double getTodayBalance() {
-        Calendar now = Calendar.getInstance();
-        boolean isCurrentMonth = displayYear == now.get(Calendar.YEAR)
-                && displayMonth == now.get(Calendar.MONTH) + 1;
-        if (!isCurrentMonth) return Double.NaN;
-        return todayBalance(now.get(Calendar.DAY_OF_MONTH));
+        for (Object row : displayRows) {
+            if (row instanceof TodayMarker) return ((TodayMarker) row).balance;
+        }
+        return Double.NaN;
     }
 
     @Override
