@@ -149,7 +149,8 @@ public class GridFragment extends Fragment {
                     boolean chargedToCard = Util.isChargedToCard(e.creditCardId, e.name, creditCards);
                     GridRowBuilder b = byKey.computeIfAbsent(key, k -> new GridRowBuilder(e.name, e.itemType, chargedToCard));
                     boolean incurred = "incurred".equals(e.status);
-                    b.amounts[i] = incurred && e.actualAmount != null ? e.actualAmount : e.plannedAmount;
+                    double amount = incurred && e.actualAmount != null ? e.actualAmount : e.plannedAmount;
+                    b.amounts[i] = (b.amounts[i] == null ? 0.0 : b.amounts[i]) + amount;
                 }
             }
             for (GridRowBuilder b : byKey.values()) {
