@@ -49,7 +49,8 @@ public class ItemsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
     private RecurringItemAdapter adapter;
     private Repository repo;
-    private TextView monthLabel, broughtFwd, carriedFwd;
+    private TextView monthLabel, broughtFwd, carriedFwd, nowBalance;
+    private View nowBalanceSection;
     private int displayYear, displayMonth;
 
     private List<CategoryEntity> categories = new ArrayList<>();
@@ -88,6 +89,8 @@ public class ItemsFragment extends Fragment {
         monthLabel = view.findViewById(R.id.monthLabel);
         broughtFwd = view.findViewById(R.id.broughtFwd);
         carriedFwd = view.findViewById(R.id.carriedFwd);
+        nowBalance = view.findViewById(R.id.nowBalance);
+        nowBalanceSection = view.findViewById(R.id.nowBalanceSection);
         Button btnPrev = view.findViewById(R.id.btnPrevMonth);
         Button btnNext = view.findViewById(R.id.btnNextMonth);
         updateMonthLabel();
@@ -158,6 +161,7 @@ public class ItemsFragment extends Fragment {
     private void loadBalance() {
         broughtFwd.setText("");
         carriedFwd.setText("");
+        nowBalanceSection.setVisibility(View.GONE);
         int year = displayYear;
         int month = displayMonth;
         repo.getForecastRange(year, month, 1, new ApiService.Callback<List<ForecastSummary>>() {
@@ -167,6 +171,7 @@ public class ItemsFragment extends Fragment {
                 broughtFwd.setText(String.format(Locale.UK, "Brought fwd: £%.2f", s.broughtForward));
                 carriedFwd.setText(String.format(Locale.UK, "Carried fwd: £%.2f", s.carriedForward));
                 adapter.setBroughtForward(s.broughtForward);
+                updateNowBalance();
             }
             @Override public void onError(String error) {}
         });
@@ -182,9 +187,23 @@ public class ItemsFragment extends Fragment {
                     }
                 }
                 adapter.setCheckpoint(latestDay, latestBalance);
+                updateNowBalance();
             }
             @Override public void onError(String error) {}
         });
+    }
+
+    private void updateNowBalance() {
+        if (getContext() == null) return;
+        double bal = adapter.getTodayBalance();
+        if (Double.isNaN(bal)) {
+            nowBalanceSection.setVisibility(View.GONE);
+        } else {
+            nowBalanceSection.setVisibility(View.VISIBLE);
+            nowBalance.setText(String.format(Locale.UK, "£%.2f", bal));
+            int colorRes = bal < 0 ? R.color.negative : R.color.colorPrimary;
+            nowBalance.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), colorRes));
+        }
     }
 
     private void showCheckpointDialog(int day, double suggestedBalance) {

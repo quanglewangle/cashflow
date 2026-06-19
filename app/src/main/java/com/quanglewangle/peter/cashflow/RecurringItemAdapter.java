@@ -265,6 +265,15 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         return month >= 1 && month <= 12 ? names[month - 1] : "";
     }
 
+    /** Today's running balance for the current month, or NaN if unavailable or viewing another month. */
+    public double getTodayBalance() {
+        Calendar now = Calendar.getInstance();
+        boolean isCurrentMonth = displayYear == now.get(Calendar.YEAR)
+                && displayMonth == now.get(Calendar.MONTH) + 1;
+        if (!isCurrentMonth) return Double.NaN;
+        return todayBalance(now.get(Calendar.DAY_OF_MONTH));
+    }
+
     @Override
     public int getItemCount() {
         return displayRows.size();
