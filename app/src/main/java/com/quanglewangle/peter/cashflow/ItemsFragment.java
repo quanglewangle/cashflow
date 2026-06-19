@@ -27,7 +27,6 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
-import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
@@ -50,7 +49,8 @@ public class ItemsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
     private RecurringItemAdapter adapter;
     private Repository repo;
-    private TextView monthLabel, broughtFwd, carriedFwd;
+    private TextView monthLabel, broughtFwd, carriedFwd, nowBalance;
+    private View nowBalanceSection;
     private int displayYear, displayMonth;
 
     private List<CategoryEntity> categories = new ArrayList<>();
@@ -89,6 +89,8 @@ public class ItemsFragment extends Fragment {
         monthLabel = view.findViewById(R.id.monthLabel);
         broughtFwd = view.findViewById(R.id.broughtFwd);
         carriedFwd = view.findViewById(R.id.carriedFwd);
+        nowBalance = view.findViewById(R.id.nowBalance);
+        nowBalanceSection = view.findViewById(R.id.nowBalanceSection);
         Button btnPrev = view.findViewById(R.id.btnPrevMonth);
         Button btnNext = view.findViewById(R.id.btnNextMonth);
         updateMonthLabel();
@@ -143,7 +145,7 @@ public class ItemsFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        if (adapter != null) loadEntries();
+        if (adapter != null) { loadEntries(); loadBalance(); }
     }
 
     private void loadAll() {
@@ -175,6 +177,7 @@ public class ItemsFragment extends Fragment {
             adapter.setOneOffEntries(oneOffs);
             adapter.setEntryAmounts(entries);
             updateBalanceLabels();
+            updateNowBalance();
         });
         repo.getCardPurchasesByMonth(displayYear, displayMonth, (purchases, fromCache) -> {
             if (getContext() == null) return;
@@ -204,6 +207,7 @@ public class ItemsFragment extends Fragment {
     private void loadBalance() {
         broughtFwd.setText("");
         carriedFwd.setText("");
+        nowBalanceSection.setVisibility(View.GONE);
         int year = displayYear;
         int month = displayMonth;
         // Server-computed brought-forward as reliable fallback when no checkpoint chains to this month
@@ -212,6 +216,7 @@ public class ItemsFragment extends Fragment {
                 if (getContext() == null || result.isEmpty()) return;
                 adapter.setBroughtForward(result.get(0).broughtForward);
                 updateBalanceLabels();
+                updateNowBalance();
             }
             @Override public void onError(String error) {}
         });
@@ -233,9 +238,23 @@ public class ItemsFragment extends Fragment {
                 }
                 adapter.setCheckpoint(latestYear, latestMonth, latestDay, latestBalance);
                 updateBalanceLabels();
+                updateNowBalance();
             }
             @Override public void onError(String error) {}
         });
+    }
+
+    private void updateNowBalance() {
+        if (getContext() == null) return;
+        double bal = adapter.getTodayBalance();
+        if (Double.isNaN(bal)) {
+            nowBalanceSection.setVisibility(View.GONE);
+        } else {
+            nowBalanceSection.setVisibility(View.VISIBLE);
+            nowBalance.setText(String.format(Locale.UK, "£%.2f", bal));
+            int colorRes = bal < 0 ? R.color.negative : R.color.colorPrimary;
+            nowBalance.setTextColor(androidx.core.content.ContextCompat.getColor(requireContext(), colorRes));
+        }
     }
 
     private void showCheckpointDialog(int day, double suggestedBalance) {
