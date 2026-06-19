@@ -71,37 +71,47 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
         if (d.minBalance < DANGER_THRESHOLD) {
             double needed = Math.ceil(DANGER_THRESHOLD - d.minBalance);
             double endAfterBorrow = d.carriedForward + needed;
+            String borrowDate = d.minBalanceDay > 0
+                    ? "by " + Util.ordinal(d.minBalanceDay) + " " + months[d.periodMonth - 1]
+                    : "at start of " + months[d.periodMonth - 1];
             vh.borrowLabel.setVisibility(View.VISIBLE);
             vh.borrowLabel.setText(String.format(Locale.UK,
-                    "Borrow £%.0f from Marcos → end balance £%.0f", needed, endAfterBorrow));
+                    "Borrow £%.0f from Marcos %s → end £%.0f", needed, borrowDate, endAfterBorrow));
             vh.borrowLabel.setTextColor(ctx.getColor(R.color.negative));
 
             // Find the first later month where repaying the loan won't breach -£1,000.
-            // We use min_balance of that month minus the loan as the worst-case post-repay dip.
             String repayText = null;
+            double balanceAfterRepay = Double.NaN;
             for (int j = position + 1; j < rows.size(); j++) {
                 ForecastDanger later = rows.get(j);
                 if (later.minBalance - needed >= DANGER_THRESHOLD) {
                     String monthName = months[later.periodMonth - 1];
-                    if (later.minBalanceDay > 0) {
-                        repayText = "Repay from " + Util.ordinal(later.minBalanceDay) + " " + monthName;
-                    } else {
-                        repayText = "Repay from start of " + monthName;
-                    }
+                    repayText = later.minBalanceDay > 0
+                            ? "Repay from " + Util.ordinal(later.minBalanceDay) + " " + monthName
+                            : "Repay from start of " + monthName;
+                    balanceAfterRepay = later.carriedForward - needed;
                     break;
                 }
             }
             vh.repayLabel.setVisibility(View.VISIBLE);
+            vh.repayBalanceLabel.setVisibility(View.VISIBLE);
             if (repayText != null) {
                 vh.repayLabel.setText(repayText);
                 vh.repayLabel.setTextColor(ctx.getColor(R.color.incurred));
+                vh.repayBalanceLabel.setText(String.format(Locale.UK,
+                        "Balance after repay: £%.0f", balanceAfterRepay));
+                vh.repayBalanceLabel.setTextColor(balanceAfterRepay >= 0
+                        ? ctx.getColor(R.color.incurred)
+                        : ctx.getColor(R.color.colorSecondary));
             } else {
                 vh.repayLabel.setText("No safe repayment date within 6 months");
                 vh.repayLabel.setTextColor(ctx.getColor(R.color.colorSecondary));
+                vh.repayBalanceLabel.setVisibility(View.GONE);
             }
         } else {
             vh.borrowLabel.setVisibility(View.GONE);
             vh.repayLabel.setVisibility(View.GONE);
+            vh.repayBalanceLabel.setVisibility(View.GONE);
         }
     }
 
@@ -112,7 +122,8 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         View statusDot;
-        TextView monthLabel, minBalanceLabel, detailLabel, endBalanceLabel, borrowLabel, repayLabel;
+        TextView monthLabel, minBalanceLabel, detailLabel, endBalanceLabel,
+                borrowLabel, repayLabel, repayBalanceLabel;
 
         ViewHolder(View v) {
             super(v);
@@ -123,6 +134,7 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
             endBalanceLabel = v.findViewById(R.id.endBalanceLabel);
             borrowLabel = v.findViewById(R.id.borrowLabel);
             repayLabel = v.findViewById(R.id.repayLabel);
+            repayBalanceLabel = v.findViewById(R.id.repayBalanceLabel);
         }
     }
 }
