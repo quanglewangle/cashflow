@@ -445,6 +445,31 @@ public class ApiService {
         return f;
     }
 
+    public void getForecastDanger(int year, int month, int count, Callback<List<com.quanglewangle.peter.cashflow.data.ForecastDanger>> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "forecast/danger?year=" + year + "&month=" + month + "&count=" + count)
+                .build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<com.quanglewangle.peter.cashflow.data.ForecastDanger> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    if (o == null) continue;
+                    com.quanglewangle.peter.cashflow.data.ForecastDanger d = new com.quanglewangle.peter.cashflow.data.ForecastDanger();
+                    d.periodYear = o.optInt("period_year");
+                    d.periodMonth = o.optInt("period_month");
+                    d.broughtForward = o.optDouble("brought_forward", 0);
+                    d.minBalance = o.optDouble("min_balance", 0);
+                    d.minBalanceDay = o.optInt("min_balance_day");
+                    d.carriedForward = o.optDouble("carried_forward", 0);
+                    out.add(d);
+                }
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
     // ---- balance checkpoints ----
     // Re-anchors the forecast to a real bank balance, same habit as
     // hand-correcting "brought forward" in the spreadsheet -- add a new

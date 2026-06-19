@@ -27,7 +27,7 @@ public class MainActivity extends AppCompatActivity {
             if (id == R.id.nav_cards) {
                 fragment = new CardsFragment();
             } else if (id == R.id.nav_grid) {
-                fragment = new GridFragment();
+                fragment = new DangerFragment();
             } else {
                 fragment = new ItemsFragment();
             }
