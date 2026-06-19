@@ -10,16 +10,23 @@ class GridRow {
     /** True if this item is paid via a credit card -- it doesn't move the cash
      *  balance, so it's greyed out and excluded from the category total. */
     boolean paidByCard;
+    /** True if any entry for this row has a creditCardId set (shows the card icon). */
+    boolean hasCardLink;
 
     GridRow(String label, String[] cells, String itemType, boolean bold) {
-        this(label, cells, itemType, bold, false);
+        this(label, cells, itemType, bold, false, false);
     }
 
     GridRow(String label, String[] cells, String itemType, boolean bold, boolean paidByCard) {
+        this(label, cells, itemType, bold, paidByCard, false);
+    }
+
+    GridRow(String label, String[] cells, String itemType, boolean bold, boolean paidByCard, boolean hasCardLink) {
         this.label = label;
         this.cells = cells;
         this.itemType = itemType;
         this.bold = bold;
         this.paidByCard = paidByCard;
+        this.hasCardLink = hasCardLink;
     }
 }

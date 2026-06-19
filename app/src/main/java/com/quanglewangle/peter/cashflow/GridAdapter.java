@@ -43,6 +43,18 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
             holder.label.setTextColor(Util.colorForItemType(holder.itemView.getContext(), null));
         }
 
+        if (row.hasCardLink) {
+            holder.cardIcon.setVisibility(View.VISIBLE);
+            android.graphics.drawable.Drawable d =
+                    androidx.core.graphics.drawable.DrawableCompat.wrap(
+                            holder.itemView.getContext().getDrawable(R.drawable.ic_cards)).mutate();
+            androidx.core.graphics.drawable.DrawableCompat.setTint(
+                    d, holder.itemView.getContext().getColor(R.color.incurred));
+            holder.cardIcon.setImageDrawable(d);
+        } else {
+            holder.cardIcon.setVisibility(View.GONE);
+        }
+
         holder.cellsContainer.removeAllViews();
         for (String cell : row.cells) {
             TextView tv = new TextView(holder.itemView.getContext());
@@ -63,11 +75,13 @@ public class GridAdapter extends RecyclerView.Adapter<GridAdapter.ViewHolder> {
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView label;
         LinearLayout cellsContainer;
+        android.widget.ImageView cardIcon;
 
         ViewHolder(View itemView) {
             super(itemView);
             label = itemView.findViewById(R.id.label);
             cellsContainer = itemView.findViewById(R.id.cellsContainer);
+            cardIcon = itemView.findViewById(R.id.cardIcon);
         }
     }
 }

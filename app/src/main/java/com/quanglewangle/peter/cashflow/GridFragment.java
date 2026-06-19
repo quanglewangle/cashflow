@@ -147,7 +147,8 @@ public class GridFragment extends Fragment {
                     if (e.categoryId != category.id) continue;
                     String key = e.recurringItemId != null ? "ri-" + e.recurringItemId : "oneoff-" + e.id;
                     boolean chargedToCard = Util.isChargedToCard(e.creditCardId, e.name, creditCards);
-                    GridRowBuilder b = byKey.computeIfAbsent(key, k -> new GridRowBuilder(e.name, e.itemType, chargedToCard));
+                    boolean hasCardLink = e.creditCardId != null;
+                    GridRowBuilder b = byKey.computeIfAbsent(key, k -> new GridRowBuilder(e.name, e.itemType, chargedToCard, hasCardLink));
                     boolean incurred = "incurred".equals(e.status);
                     double amount = incurred && e.actualAmount != null ? e.actualAmount : e.plannedAmount;
                     b.amounts[i] = (b.amounts[i] == null ? 0.0 : b.amounts[i]) + amount;
@@ -159,7 +160,7 @@ public class GridFragment extends Fragment {
                 // the category total below (from the server's cash forecast)
                 // already excludes them. A card's own statement payment is a real
                 // cash expense though, so it's excluded from this and stays normal.
-                rows.add(new GridRow(b.name, formatAmounts(b.amounts), b.itemType, false, b.paidByCard));
+                rows.add(new GridRow(b.name, formatAmounts(b.amounts), b.itemType, false, b.paidByCard, b.hasCardLink));
             }
 
             String[] subtotal = formatAll(i -> {
@@ -197,10 +198,13 @@ public class GridFragment extends Fragment {
         final boolean paidByCard;
         final Double[] amounts = new Double[MONTHS];
 
-        GridRowBuilder(String name, String itemType, boolean paidByCard) {
+        final boolean hasCardLink;
+
+        GridRowBuilder(String name, String itemType, boolean paidByCard, boolean hasCardLink) {
             this.name = name;
             this.itemType = itemType;
             this.paidByCard = paidByCard;
+            this.hasCardLink = hasCardLink;
         }
     }
 }
