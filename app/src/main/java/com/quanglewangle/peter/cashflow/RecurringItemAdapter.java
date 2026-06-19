@@ -517,16 +517,16 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                 && displayMonth == now.get(Calendar.MONTH) + 1;
         int todayDay = now.get(Calendar.DAY_OF_MONTH);
         int itemDay = dayOf(row);
-        boolean isPast = isCurrentMonth && itemDay < todayDay && itemDay > 0;
-        if (isPast) {
-            // Dim if: explicitly paid, billed to a card, or suppressed by a checkpoint (NaN balance)
-            if (isIncurred(row) || paidByCard || Double.isNaN(bal)) {
-                ivh.itemView.setAlpha(0.35f);
-            } else {
-                // Overdue — full opacity but name in red
-                ivh.itemView.setAlpha(1f);
-                ivh.name.setTextColor(ctx.getColor(R.color.negative));
-            }
+        boolean isAtOrBefore = isCurrentMonth && itemDay <= todayDay && itemDay > 0;
+        boolean isBeforeToday = isCurrentMonth && itemDay < todayDay && itemDay > 0;
+        boolean done = isIncurred(row) || paidByCard || Double.isNaN(bal);
+        if (isAtOrBefore && done) {
+            // Paid, card-charged, or captured by checkpoint — dim regardless of whether today or past
+            ivh.itemView.setAlpha(0.35f);
+        } else if (isBeforeToday) {
+            // Overdue — full opacity but name in red
+            ivh.itemView.setAlpha(1f);
+            ivh.name.setTextColor(ctx.getColor(R.color.negative));
         } else {
             ivh.itemView.setAlpha(1f);
         }

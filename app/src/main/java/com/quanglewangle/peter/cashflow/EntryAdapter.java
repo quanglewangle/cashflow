@@ -190,14 +190,13 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 && displayMonth == now.get(Calendar.MONTH) + 1;
         int todayDay = now.get(Calendar.DAY_OF_MONTH);
         int itemDay = e.dueDay != null ? e.dueDay : Integer.MAX_VALUE;
-        boolean isPast = isCurrentMonth && itemDay < todayDay;
-        if (isPast) {
-            if (incurred) {
-                vh.itemView.setAlpha(0.35f);
-            } else {
-                vh.itemView.setAlpha(1f);
-                vh.name.setTextColor(vh.itemView.getContext().getColor(R.color.negative));
-            }
+        boolean isAtOrBefore = isCurrentMonth && itemDay <= todayDay;
+        boolean isBeforeToday = isCurrentMonth && itemDay < todayDay;
+        if (isAtOrBefore && incurred) {
+            vh.itemView.setAlpha(0.35f);
+        } else if (isBeforeToday) {
+            vh.itemView.setAlpha(1f);
+            vh.name.setTextColor(vh.itemView.getContext().getColor(R.color.negative));
         } else {
             vh.itemView.setAlpha(1f);
         }
