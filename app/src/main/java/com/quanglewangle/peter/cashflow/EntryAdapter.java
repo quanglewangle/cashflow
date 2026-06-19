@@ -172,6 +172,18 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         vh.markIncurredButton.setOnClickListener(v -> onMarkIncurred.onClick(e));
         vh.itemView.setOnLongClickListener(v -> { onDelete.onDelete(e); return true; });
 
+        if (e.creditCardId != null) {
+            vh.cardIcon.setVisibility(View.VISIBLE);
+            android.graphics.drawable.Drawable d =
+                    androidx.core.graphics.drawable.DrawableCompat.wrap(
+                            vh.itemView.getContext().getDrawable(R.drawable.ic_cards)).mutate();
+            androidx.core.graphics.drawable.DrawableCompat.setTint(
+                    d, vh.itemView.getContext().getColor(R.color.incurred));
+            vh.cardIcon.setImageDrawable(d);
+        } else {
+            vh.cardIcon.setVisibility(View.GONE);
+        }
+
         // Dim paid past entries; highlight overdue ones in red
         Calendar now = Calendar.getInstance();
         boolean isCurrentMonth = displayYear == now.get(Calendar.YEAR)
@@ -199,6 +211,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     static class EntryViewHolder extends RecyclerView.ViewHolder {
         TextView dueDay, name, status, runningBalance;
         Button markIncurredButton;
+        android.widget.ImageView cardIcon;
 
         EntryViewHolder(View itemView) {
             super(itemView);
@@ -207,6 +220,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             status = itemView.findViewById(R.id.status);
             runningBalance = itemView.findViewById(R.id.runningBalance);
             markIncurredButton = itemView.findViewById(R.id.markIncurredButton);
+            cardIcon = itemView.findViewById(R.id.cardIcon);
         }
     }
 

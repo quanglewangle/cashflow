@@ -48,10 +48,24 @@
             tools:text="Balance: £1,234.56" />
     </LinearLayout>
 
-    <Button
-        android:id="@+id/markIncurredButton"
-        style="@style/Widget.MaterialComponents.Button.TextButton"
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:text="Mark paid" />
+        android:orientation="vertical"
+        android:gravity="center_horizontal">
+
+        <Button
+            android:id="@+id/markIncurredButton"
+            style="@style/Widget.MaterialComponents.Button.TextButton"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Mark paid" />
+
+        <ImageView
+            android:id="@+id/cardIcon"
+            android:layout_width="16dp"
+            android:layout_height="16dp"
+            android:src="@drawable/ic_cards"
+            android:visibility="gone" />
+    </LinearLayout>
 </LinearLayout>
