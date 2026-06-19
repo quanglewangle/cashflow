@@ -471,7 +471,12 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                     ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");
             paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
             ivh.amount.setTextColor(Util.colorForAmount(ctx, item.itemType, paidByCard));
-            ivh.cardIcon.setVisibility(paidByCard ? View.VISIBLE : View.GONE);
+            if (paidByCard) {
+                ivh.cardIcon.setVisibility(View.VISIBLE);
+                ivh.cardIcon.setImageTintList(android.content.res.ColorStateList.valueOf(ctx.getColor(R.color.planned)));
+            } else {
+                ivh.cardIcon.setVisibility(View.GONE);
+            }
             ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
         } else if (row instanceof EntryEntity) {
             EntryEntity entry = (EntryEntity) row;
