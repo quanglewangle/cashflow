@@ -45,6 +45,7 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
 
         String[] months = new DateFormatSymbols().getMonths();
         vh.monthLabel.setText(months[d.periodMonth - 1] + " " + d.periodYear);
+        // months[] is also used in the repayment line below
 
         int dotColor;
         int minColor;
@@ -69,11 +70,33 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
 
         if (d.minBalance < DANGER_THRESHOLD) {
             double needed = Math.ceil(DANGER_THRESHOLD - d.minBalance);
+            double endAfterBorrow = d.carriedForward + needed;
             vh.borrowLabel.setVisibility(View.VISIBLE);
-            vh.borrowLabel.setText(String.format(Locale.UK, "Borrow £%.0f from Marcos to stay above −£1,000", needed));
+            vh.borrowLabel.setText(String.format(Locale.UK,
+                    "Borrow £%.0f from Marcos → end balance £%.0f", needed, endAfterBorrow));
             vh.borrowLabel.setTextColor(ctx.getColor(R.color.negative));
+
+            // Find the first later month where repaying the loan won't breach -£1,000.
+            // We use min_balance of that month minus the loan as the worst-case post-repay dip.
+            String repayMonth = null;
+            for (int j = position + 1; j < rows.size(); j++) {
+                ForecastDanger later = rows.get(j);
+                if (later.minBalance - needed >= DANGER_THRESHOLD) {
+                    repayMonth = months[later.periodMonth - 1];
+                    break;
+                }
+            }
+            vh.repayLabel.setVisibility(View.VISIBLE);
+            if (repayMonth != null) {
+                vh.repayLabel.setText("Repay in: " + repayMonth);
+                vh.repayLabel.setTextColor(ctx.getColor(R.color.incurred));
+            } else {
+                vh.repayLabel.setText("No safe repayment month within 6 months");
+                vh.repayLabel.setTextColor(ctx.getColor(R.color.colorSecondary));
+            }
         } else {
             vh.borrowLabel.setVisibility(View.GONE);
+            vh.repayLabel.setVisibility(View.GONE);
         }
     }
 
@@ -84,7 +107,7 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         View statusDot;
-        TextView monthLabel, minBalanceLabel, detailLabel, endBalanceLabel, borrowLabel;
+        TextView monthLabel, minBalanceLabel, detailLabel, endBalanceLabel, borrowLabel, repayLabel;
 
         ViewHolder(View v) {
             super(v);
@@ -94,6 +117,7 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
             detailLabel = v.findViewById(R.id.detailLabel);
             endBalanceLabel = v.findViewById(R.id.endBalanceLabel);
             borrowLabel = v.findViewById(R.id.borrowLabel);
+            repayLabel = v.findViewById(R.id.repayLabel);
         }
     }
 }
