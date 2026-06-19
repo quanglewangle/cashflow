@@ -21,13 +21,21 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
     private static final double WARNING_THRESHOLD = 0.0;
 
     private List<ForecastDanger> rows;
+    private boolean simulating;
 
-    public DangerAdapter(List<ForecastDanger> rows) {
+    public DangerAdapter(List<ForecastDanger> rows, boolean simulating) {
         this.rows = rows;
+        this.simulating = simulating;
     }
 
-    public void setRows(List<ForecastDanger> rows) {
+    public void setRows(List<ForecastDanger> rows, boolean simulating) {
         this.rows = rows;
+        this.simulating = simulating;
+        notifyDataSetChanged();
+    }
+
+    public void setSimulating(boolean simulating) {
+        this.simulating = simulating;
         notifyDataSetChanged();
     }
 
@@ -42,32 +50,39 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
     public void onBindViewHolder(@NonNull ViewHolder vh, int position) {
         ForecastDanger d = rows.get(position);
         android.content.Context ctx = vh.itemView.getContext();
-
         String[] months = new DateFormatSymbols().getMonths();
-        vh.monthLabel.setText(months[d.periodMonth - 1] + " " + d.periodYear);
-        // months[] is also used in the repayment line below
 
-        int dotColor;
-        int minColor;
-        if (d.minBalance < DANGER_THRESHOLD) {
-            dotColor = ctx.getColor(R.color.negative);
-            minColor = ctx.getColor(R.color.negative);
-        } else if (d.minBalance < WARNING_THRESHOLD) {
-            dotColor = ctx.getColor(R.color.colorSecondary);
-            minColor = ctx.getColor(R.color.colorSecondary);
+        vh.monthLabel.setText(months[d.periodMonth - 1] + " " + d.periodYear);
+
+        double displayMin = simulating ? d.simMin : d.minBalance;
+        double displayCarried = simulating ? d.simCarried : d.carriedForward;
+
+        int dotColor, minColor;
+        if (displayMin < DANGER_THRESHOLD) {
+            dotColor = minColor = ctx.getColor(R.color.negative);
+        } else if (displayMin < WARNING_THRESHOLD) {
+            dotColor = minColor = ctx.getColor(R.color.colorSecondary);
         } else {
-            dotColor = ctx.getColor(R.color.incurred);
-            minColor = ctx.getColor(R.color.incurred);
+            dotColor = minColor = ctx.getColor(R.color.incurred);
         }
 
         vh.statusDot.setBackgroundTintList(ColorStateList.valueOf(dotColor));
-        vh.minBalanceLabel.setText(String.format(Locale.UK, "£%.0f", d.minBalance));
+        vh.minBalanceLabel.setText(String.format(Locale.UK, "£%.0f", displayMin));
         vh.minBalanceLabel.setTextColor(minColor);
 
         String dayLabel = d.minBalanceDay > 0 ? "Low on " + Util.ordinal(d.minBalanceDay) : "Low at start";
         vh.detailLabel.setText(dayLabel);
-        vh.endBalanceLabel.setText(String.format(Locale.UK, "End: £%.0f", d.carriedForward));
+        vh.endBalanceLabel.setText(String.format(Locale.UK, "End: £%.0f", displayCarried));
 
+        if (simulating) {
+            bindSimulatedActions(vh, d, ctx, months, position);
+        } else {
+            bindRawDanger(vh, d, ctx, months, position);
+        }
+    }
+
+    private void bindRawDanger(ViewHolder vh, ForecastDanger d, android.content.Context ctx,
+                                String[] months, int position) {
         if (d.minBalance < DANGER_THRESHOLD) {
             double needed = Math.ceil(DANGER_THRESHOLD - d.minBalance);
             double endAfterBorrow = d.carriedForward + needed;
@@ -79,7 +94,6 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
                     "Borrow £%.0f from Marcos %s → end £%.0f", needed, borrowDate, endAfterBorrow));
             vh.borrowLabel.setTextColor(ctx.getColor(R.color.negative));
 
-            // Find the first later month where repaying the loan won't breach -£1,000.
             String repayText = null;
             double balanceAfterRepay = Double.NaN;
             for (int j = position + 1; j < rows.size(); j++) {
@@ -110,6 +124,49 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
             }
         } else {
             vh.borrowLabel.setVisibility(View.GONE);
+            vh.repayLabel.setVisibility(View.GONE);
+            vh.repayBalanceLabel.setVisibility(View.GONE);
+        }
+    }
+
+    private void bindSimulatedActions(ViewHolder vh, ForecastDanger d, android.content.Context ctx,
+                                      String[] months, int position) {
+        boolean hasAction = d.borrowNeeded > 0 || d.repayAmount > 0;
+        if (!hasAction) {
+            vh.borrowLabel.setVisibility(View.GONE);
+            vh.repayLabel.setVisibility(View.GONE);
+            vh.repayBalanceLabel.setVisibility(View.GONE);
+            return;
+        }
+
+        if (d.borrowNeeded > 0) {
+            String borrowDate = d.minBalanceDay > 0
+                    ? "by " + Util.ordinal(d.minBalanceDay) + " " + months[d.periodMonth - 1]
+                    : "at start of " + months[d.periodMonth - 1];
+            vh.borrowLabel.setVisibility(View.VISIBLE);
+            vh.borrowLabel.setText(String.format(Locale.UK,
+                    "Borrow £%.0f from Marcos %s", d.borrowNeeded, borrowDate));
+            vh.borrowLabel.setTextColor(ctx.getColor(R.color.negative));
+        } else {
+            vh.borrowLabel.setVisibility(View.GONE);
+        }
+
+        if (d.repayAmount > 0) {
+            String repayDate = d.minBalanceDay > 0
+                    ? "after " + Util.ordinal(d.minBalanceDay) + " " + months[d.periodMonth - 1]
+                    : "end of " + months[d.periodMonth - 1];
+            double balAfterRepay = d.simCarried; // already reflects repayment
+            vh.repayLabel.setVisibility(View.VISIBLE);
+            vh.repayLabel.setText(String.format(Locale.UK,
+                    "Repay £%.0f to Marcos %s", d.repayAmount, repayDate));
+            vh.repayLabel.setTextColor(ctx.getColor(R.color.incurred));
+            vh.repayBalanceLabel.setVisibility(View.VISIBLE);
+            vh.repayBalanceLabel.setText(String.format(Locale.UK,
+                    "Balance after repay: £%.0f", balAfterRepay));
+            vh.repayBalanceLabel.setTextColor(balAfterRepay >= 0
+                    ? ctx.getColor(R.color.incurred)
+                    : ctx.getColor(R.color.colorSecondary));
+        } else {
             vh.repayLabel.setVisibility(View.GONE);
             vh.repayBalanceLabel.setVisibility(View.GONE);
         }
