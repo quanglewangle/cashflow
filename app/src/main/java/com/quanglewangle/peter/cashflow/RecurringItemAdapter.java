@@ -473,7 +473,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.amount.setTextColor(Util.colorForAmount(ctx, item.itemType, paidByCard));
             if (paidByCard) {
                 ivh.cardIcon.setVisibility(View.VISIBLE);
-                ivh.cardIcon.setImageTintList(android.content.res.ColorStateList.valueOf(ctx.getColor(R.color.planned)));
+                ivh.cardIcon.setColorFilter(ctx.getColor(R.color.planned), android.graphics.PorterDuff.Mode.SRC_IN);
             } else {
                 ivh.cardIcon.setVisibility(View.GONE);
             }
