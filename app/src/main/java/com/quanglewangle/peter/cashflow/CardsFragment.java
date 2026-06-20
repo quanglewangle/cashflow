@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
@@ -49,7 +50,7 @@ public class CardsFragment extends Fragment {
         // Logging a purchase is the everyday action; editing a card's own
         // parameters (name/dates) is rare, so it's tucked behind the edit icon.
         adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog,
-                this::showSubscriptionsDialog, this::showEditDialog);
+                this::showPurchasesDialog, this::showSubscriptionsDialog, this::showEditDialog);
         recyclerView.setAdapter(adapter);
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
@@ -143,6 +144,122 @@ public class CardsFragment extends Fragment {
                                     Toast.LENGTH_LONG).show();
                     }, this::showError);
                 })
+                .show();
+    }
+
+    private void showPurchasesDialog(CreditCardEntity card) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int[] yr = {cal.get(java.util.Calendar.YEAR)};
+        int[] mo = {cal.get(java.util.Calendar.MONTH) + 1};
+
+        int padPx = (int) (16 * getResources().getDisplayMetrics().density);
+        String[] monthNames = new java.text.DateFormatSymbols(Locale.UK).getMonths();
+
+        android.widget.LinearLayout root = new android.widget.LinearLayout(getContext());
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+        android.widget.LinearLayout navRow = new android.widget.LinearLayout(getContext());
+        navRow.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        navRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        navRow.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+
+        android.widget.Button prevBtn = new android.widget.Button(getContext());
+        prevBtn.setText("<");
+        android.widget.TextView monthLabel = new android.widget.TextView(getContext());
+        monthLabel.setGravity(android.view.Gravity.CENTER);
+        monthLabel.setTextSize(16);
+        android.widget.LinearLayout.LayoutParams expandLP = new android.widget.LinearLayout.LayoutParams(
+                0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        monthLabel.setLayoutParams(expandLP);
+        android.widget.Button nextBtn = new android.widget.Button(getContext());
+        nextBtn.setText(">");
+
+        navRow.addView(prevBtn);
+        navRow.addView(monthLabel);
+        navRow.addView(nextBtn);
+        root.addView(navRow);
+
+        int maxScrollPx = (int) (280 * getResources().getDisplayMetrics().density);
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(getContext());
+        android.widget.LinearLayout listContainer = new android.widget.LinearLayout(getContext());
+        listContainer.setOrientation(android.widget.LinearLayout.VERTICAL);
+        scrollView.addView(listContainer);
+        root.addView(scrollView, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, maxScrollPx));
+
+        android.widget.TextView totalView = new android.widget.TextView(getContext());
+        totalView.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+        totalView.setTextSize(15);
+        root.addView(totalView);
+
+        AlertDialog[] dialog = {null};
+        Runnable[] load = {null};
+        load[0] = () -> {
+            monthLabel.setText(monthNames[mo[0] - 1] + " " + yr[0]);
+            listContainer.removeAllViews();
+            totalView.setText("Loading…");
+            repo.getCardPurchasesByMonth(yr[0], mo[0], (all, fromCache) -> {
+                if (getContext() == null) return;
+                List<CardPurchase> filtered = new ArrayList<>();
+                for (CardPurchase p : all) {
+                    if (p.creditCardId == card.id) filtered.add(p);
+                }
+                filtered.sort((a, b) -> a.purchaseDate.compareTo(b.purchaseDate));
+                listContainer.removeAllViews();
+                if (filtered.isEmpty()) {
+                    android.widget.TextView empty = new android.widget.TextView(getContext());
+                    empty.setText("No purchases this month");
+                    empty.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+                    listContainer.addView(empty);
+                    totalView.setText("");
+                } else {
+                    double total = 0;
+                    for (CardPurchase p : filtered) {
+                        total += p.amount;
+                        android.widget.TextView row = new android.widget.TextView(getContext());
+                        String dateStr = p.purchaseDate.length() >= 10
+                                ? p.purchaseDate.substring(8, 10) + " "
+                                  + monthNames[Integer.parseInt(p.purchaseDate.substring(5, 7)) - 1].substring(0, 3)
+                                : "";
+                        row.setText(dateStr + "  " + p.description + "  £"
+                                + String.format(Locale.UK, "%.2f", p.amount));
+                        row.setPadding(padPx, padPx / 3, padPx, padPx / 3);
+                        final CardPurchase fp = p;
+                        row.setOnClickListener(v -> {
+                            if (dialog[0] != null) dialog[0].dismiss();
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("Delete purchase?")
+                                    .setMessage(fp.description + " — £"
+                                            + String.format(Locale.UK, "%.2f", fp.amount))
+                                    .setPositiveButton("Delete", (d2, w2) ->
+                                            repo.deleteCardPurchase(fp.id, () -> {
+                                                showPurchasesDialog(card);
+                                            }, this::showError))
+                                    .setNegativeButton("Cancel", (d2, w2) -> showPurchasesDialog(card))
+                                    .show();
+                        });
+                        listContainer.addView(row);
+                    }
+                    totalView.setText("Total: £" + String.format(Locale.UK, "%.2f", total));
+                }
+            });
+        };
+
+        prevBtn.setOnClickListener(v -> {
+            mo[0]--; if (mo[0] < 1) { mo[0] = 12; yr[0]--; }
+            load[0].run();
+        });
+        nextBtn.setOnClickListener(v -> {
+            mo[0]++; if (mo[0] > 12) { mo[0] = 1; yr[0]++; }
+            load[0].run();
+        });
+
+        load[0].run();
+
+        dialog[0] = new AlertDialog.Builder(requireContext())
+                .setTitle(card.name + " purchases")
+                .setView(root)
+                .setNegativeButton("Close", null)
                 .show();
     }
 
