@@ -564,8 +564,8 @@ public class ItemsFragment extends Fragment {
         for (CategoryEntity c : categories) categoryNames.add(c.name);
         spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
-        // Default to income
-        spinnerItemType.setSelection(0);
+        // Default to expense (more common)
+        spinnerItemType.setSelection(1);
         // Default day to today
         inputDueDay.setText(String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH)));
 

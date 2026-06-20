@@ -167,6 +167,7 @@ public class EntriesActivity extends AppCompatActivity {
         for (CategoryEntity c : categories) categoryNames.add(c.name);
         spinnerCategory.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
+        spinnerItemType.setSelection(1); // default to expense
 
         new AlertDialog.Builder(this)
                 .setTitle("Add one-off entry")
