@@ -15,10 +15,15 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
+import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
+import java.text.DateFormatSymbols;
 import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 
 /** Manage credit cards: name + statement closing day + payment due day. */
 public class CardsFragment extends Fragment {
@@ -44,7 +49,8 @@ public class CardsFragment extends Fragment {
 
         // Logging a purchase is the everyday action; editing a card's own
         // parameters (name/dates) is rare, so it's tucked behind the edit icon.
-        adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog, this::showEditDialog);
+        adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog,
+                this::showPurchasesDialog, this::showSubscriptionsDialog, this::showEditDialog);
         recyclerView.setAdapter(adapter);
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
@@ -126,10 +132,134 @@ public class CardsFragment extends Fragment {
                         Toast.makeText(getContext(), "Description, amount, and a YYYY-MM-DD date are required", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    repo.addCardPurchase(card.id, description, amount, date,
-                            () -> Toast.makeText(getContext(), "Logged", Toast.LENGTH_SHORT).show(),
-                            this::showError);
+                    int[] period = paymentPeriodFor(card, date);
+                    int payYear = period[0], payMonth = period[1];
+                    repo.addCardPurchase(card.id, description, amount, date, () -> {
+                        // Refresh the payment month's entries so the updated amount is cached
+                        repo.loadPeriod(payYear, payMonth, (entries, fromCache) -> {});
+                        String monthName = new DateFormatSymbols(Locale.UK).getMonths()[payMonth - 1];
+                        if (getContext() != null)
+                            Toast.makeText(getContext(),
+                                    "Logged — " + card.name + " " + monthName + " payment updated",
+                                    Toast.LENGTH_LONG).show();
+                    }, this::showError);
                 })
+                .show();
+    }
+
+    private void showPurchasesDialog(CreditCardEntity card) {
+        java.util.Calendar cal = java.util.Calendar.getInstance();
+        int[] yr = {cal.get(java.util.Calendar.YEAR)};
+        int[] mo = {cal.get(java.util.Calendar.MONTH) + 1};
+
+        int padPx = (int) (16 * getResources().getDisplayMetrics().density);
+        String[] monthNames = new java.text.DateFormatSymbols(Locale.UK).getMonths();
+
+        android.widget.LinearLayout root = new android.widget.LinearLayout(getContext());
+        root.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+        android.widget.LinearLayout navRow = new android.widget.LinearLayout(getContext());
+        navRow.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        navRow.setGravity(android.view.Gravity.CENTER_VERTICAL);
+        navRow.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+
+        android.widget.Button prevBtn = new android.widget.Button(getContext());
+        prevBtn.setText("<");
+        android.widget.TextView monthLabel = new android.widget.TextView(getContext());
+        monthLabel.setGravity(android.view.Gravity.CENTER);
+        monthLabel.setTextSize(16);
+        android.widget.LinearLayout.LayoutParams expandLP = new android.widget.LinearLayout.LayoutParams(
+                0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f);
+        monthLabel.setLayoutParams(expandLP);
+        android.widget.Button nextBtn = new android.widget.Button(getContext());
+        nextBtn.setText(">");
+
+        navRow.addView(prevBtn);
+        navRow.addView(monthLabel);
+        navRow.addView(nextBtn);
+        root.addView(navRow);
+
+        int maxScrollPx = (int) (280 * getResources().getDisplayMetrics().density);
+        android.widget.ScrollView scrollView = new android.widget.ScrollView(getContext());
+        android.widget.LinearLayout listContainer = new android.widget.LinearLayout(getContext());
+        listContainer.setOrientation(android.widget.LinearLayout.VERTICAL);
+        scrollView.addView(listContainer);
+        root.addView(scrollView, new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT, maxScrollPx));
+
+        android.widget.TextView totalView = new android.widget.TextView(getContext());
+        totalView.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+        totalView.setTextSize(15);
+        root.addView(totalView);
+
+        AlertDialog[] dialog = {null};
+        Runnable[] load = {null};
+        load[0] = () -> {
+            monthLabel.setText(monthNames[mo[0] - 1] + " " + yr[0]);
+            listContainer.removeAllViews();
+            totalView.setText("Loading…");
+            repo.getCardPurchasesByMonth(yr[0], mo[0], (all, fromCache) -> {
+                if (getContext() == null) return;
+                List<CardPurchase> filtered = new ArrayList<>();
+                for (CardPurchase p : all) {
+                    if (p.creditCardId == card.id) filtered.add(p);
+                }
+                filtered.sort((a, b) -> a.purchaseDate.compareTo(b.purchaseDate));
+                listContainer.removeAllViews();
+                if (filtered.isEmpty()) {
+                    android.widget.TextView empty = new android.widget.TextView(getContext());
+                    empty.setText("No purchases this month");
+                    empty.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+                    listContainer.addView(empty);
+                    totalView.setText("");
+                } else {
+                    double total = 0;
+                    for (CardPurchase p : filtered) {
+                        total += p.amount;
+                        android.widget.TextView row = new android.widget.TextView(getContext());
+                        String dateStr = p.purchaseDate.length() >= 10
+                                ? p.purchaseDate.substring(8, 10) + " "
+                                  + monthNames[Integer.parseInt(p.purchaseDate.substring(5, 7)) - 1].substring(0, 3)
+                                : "";
+                        row.setText(dateStr + "  " + p.description + "  £"
+                                + String.format(Locale.UK, "%.2f", p.amount));
+                        row.setPadding(padPx, padPx / 3, padPx, padPx / 3);
+                        final CardPurchase fp = p;
+                        row.setOnClickListener(v -> {
+                            if (dialog[0] != null) dialog[0].dismiss();
+                            new AlertDialog.Builder(requireContext())
+                                    .setTitle("Delete purchase?")
+                                    .setMessage(fp.description + " — £"
+                                            + String.format(Locale.UK, "%.2f", fp.amount))
+                                    .setPositiveButton("Delete", (d2, w2) ->
+                                            repo.deleteCardPurchase(fp.id, () -> {
+                                                showPurchasesDialog(card);
+                                            }, this::showError))
+                                    .setNegativeButton("Cancel", (d2, w2) -> showPurchasesDialog(card))
+                                    .show();
+                        });
+                        listContainer.addView(row);
+                    }
+                    totalView.setText("Total: £" + String.format(Locale.UK, "%.2f", total));
+                }
+            });
+        };
+
+        prevBtn.setOnClickListener(v -> {
+            mo[0]--; if (mo[0] < 1) { mo[0] = 12; yr[0]--; }
+            load[0].run();
+        });
+        nextBtn.setOnClickListener(v -> {
+            mo[0]++; if (mo[0] > 12) { mo[0] = 1; yr[0]++; }
+            load[0].run();
+        });
+
+        load[0].run();
+
+        dialog[0] = new AlertDialog.Builder(requireContext())
+                .setTitle(card.name + " purchases")
+                .setView(root)
+                .setNegativeButton("Close", null)
                 .show();
     }
 
@@ -140,6 +270,82 @@ public class CardsFragment extends Fragment {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    private void showSubscriptionsDialog(CreditCardEntity card) {
+        repo.getRecurringCardPurchases(card.id, (subs, fromCache) -> {
+            if (getContext() == null) return;
+            String[] items = new String[subs.size()];
+            for (int i = 0; i < subs.size(); i++) {
+                RecurringCardPurchase s = subs.get(i);
+                items[i] = s.description + " — £" + String.format(Locale.UK, "%.2f", s.amount)
+                        + " (" + Util.ordinal(s.dayOfMonth) + " each month)";
+            }
+            new AlertDialog.Builder(requireContext())
+                    .setTitle(card.name + " subscriptions")
+                    .setItems(items.length > 0 ? items : new String[]{"No subscriptions yet"},
+                            (d, which) -> {
+                                if (subs.isEmpty()) return;
+                                RecurringCardPurchase sub = subs.get(which);
+                                new AlertDialog.Builder(requireContext())
+                                        .setTitle("Delete subscription?")
+                                        .setMessage(sub.description + " — £" + String.format(Locale.UK, "%.2f", sub.amount))
+                                        .setPositiveButton("Delete", (d2, w2) ->
+                                                repo.deleteRecurringCardPurchase(sub.id,
+                                                        () -> showSubscriptionsDialog(card),
+                                                        this::showError))
+                                        .setNegativeButton("Cancel", null)
+                                        .show();
+                            })
+                    .setPositiveButton("Add subscription", (d, w) -> showAddSubscriptionDialog(card))
+                    .setNegativeButton("Close", null)
+                    .show();
+        });
+    }
+
+    private void showAddSubscriptionDialog(CreditCardEntity card) {
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(getContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad * 2, pad, pad * 2, 0);
+
+        EditText inputDescription = new EditText(getContext());
+        inputDescription.setHint("Description (e.g. Netflix)");
+        inputDescription.setInputType(android.text.InputType.TYPE_CLASS_TEXT);
+        layout.addView(inputDescription);
+
+        EditText inputAmount = new EditText(getContext());
+        inputAmount.setHint("Amount");
+        inputAmount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad;
+        inputAmount.setLayoutParams(lp);
+        layout.addView(inputAmount);
+
+        EditText inputDay = new EditText(getContext());
+        inputDay.setHint("Day of month (1–31)");
+        inputDay.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputDay.setLayoutParams(lp);
+        layout.addView(inputDay);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Add subscription to " + card.name)
+                .setView(layout)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Add", (d, w) -> {
+                    String desc = inputDescription.getText().toString().trim();
+                    Double amount = parseDoubleOrNull(inputAmount.getText().toString());
+                    Integer day = parseDay(inputDay.getText().toString());
+                    if (desc.isEmpty() || amount == null || day == null) {
+                        Toast.makeText(getContext(), "Description, amount, and day are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    repo.addRecurringCardPurchase(card.id, desc, amount, day,
+                            () -> showSubscriptionsDialog(card), this::showError);
+                })
+                .show();
     }
 
     private void showError(String error) {
@@ -164,5 +370,27 @@ public class CardsFragment extends Fragment {
         } catch (NumberFormatException e) {
             return null;
         }
+    }
+
+    /** Mirrors the Go backend's paymentPeriodFor: returns {year, month} of the bill payment. */
+    private int[] paymentPeriodFor(CreditCardEntity card, String dateIso) {
+        int year, month, day;
+        try {
+            year  = Integer.parseInt(dateIso.substring(0, 4));
+            month = Integer.parseInt(dateIso.substring(5, 7));
+            day   = Integer.parseInt(dateIso.substring(8, 10));
+        } catch (Exception e) {
+            java.util.Calendar now = java.util.Calendar.getInstance();
+            year  = now.get(java.util.Calendar.YEAR);
+            month = now.get(java.util.Calendar.MONTH) + 1;
+            day   = now.get(java.util.Calendar.DAY_OF_MONTH);
+        }
+        if (day > card.statementDay) {
+            month++; if (month > 12) { month = 1; year++; }
+        }
+        for (int i = 0; i < card.paymentDueMonthOffset; i++) {
+            month++; if (month > 12) { month = 1; year++; }
+        }
+        return new int[]{year, month};
     }
 }

@@ -35,6 +35,24 @@
     </LinearLayout>
 
     <ImageButton
+        android:id="@+id/purchasesButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_receipt"
+        android:contentDescription="View purchases"
+        android:padding="8dp" />
+
+    <ImageButton
+        android:id="@+id/subscriptionsButton"
+        android:layout_width="40dp"
+        android:layout_height="40dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:src="@drawable/ic_subscriptions"
+        android:contentDescription="Manage subscriptions"
+        android:padding="8dp" />
+
+    <ImageButton
         android:id="@+id/editButton"
         android:layout_width="40dp"
         android:layout_height="40dp"
