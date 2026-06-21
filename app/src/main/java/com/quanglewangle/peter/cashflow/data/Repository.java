@@ -65,6 +65,13 @@ public class Repository {
         });
     }
 
+    public void addCategory(String name, String itemType, int sortOrder, Runnable onDone, ErrorCallback onError) {
+        api.addCategory(name, itemType, sortOrder, new ApiService.Callback<Long>() {
+            @Override public void onSuccess(Long id) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
     // ---- credit cards ----
 
     public void getCreditCards(ListCallback<CreditCardEntity> callback) {
@@ -113,8 +120,8 @@ public class Repository {
     }
 
     public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso,
-                                    Runnable onDone, ErrorCallback onError) {
-        api.updateCardPurchase(id, description, amount, purchaseDateIso, new ApiService.Callback<Void>() {
+                                    Long categoryId, Runnable onDone, ErrorCallback onError) {
+        api.updateCardPurchase(id, description, amount, purchaseDateIso, categoryId, new ApiService.Callback<Void>() {
             @Override public void onSuccess(Void v) { main.post(onDone); }
             @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
         });
@@ -152,8 +159,8 @@ public class Repository {
     /** Logs a real card purchase; not cached locally since it's a write-mostly log
      *  and its effect (the recalculated entry) is already covered by entry caching. */
     public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso,
-                                 Runnable onDone, ErrorCallback onError) {
-        api.addCardPurchase(creditCardId, description, amount, purchaseDateIso, new ApiService.Callback<Long>() {
+                                 Long categoryId, Runnable onDone, ErrorCallback onError) {
+        api.addCardPurchase(creditCardId, description, amount, purchaseDateIso, categoryId, new ApiService.Callback<Long>() {
             @Override public void onSuccess(Long id) { main.post(onDone); }
             @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
         });

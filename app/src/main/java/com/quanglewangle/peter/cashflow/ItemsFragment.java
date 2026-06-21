@@ -74,6 +74,10 @@ public class ItemsFragment extends Fragment {
             startActivity(new Intent(getContext(), BalanceCheckpointsActivity.class));
             return true;
         }
+        if (item.getItemId() == R.id.action_categories) {
+            showCategoriesDialog();
+            return true;
+        }
         return super.onOptionsItemSelected(item);
     }
 
@@ -404,13 +408,30 @@ public class ItemsFragment extends Fragment {
         String datePart = purchase.purchaseDate != null && purchase.purchaseDate.length() >= 10
                 ? purchase.purchaseDate.substring(0, 10) : "";
 
+        List<String> catNames = new ArrayList<>();
+        List<Long> catIds = new ArrayList<>();
+        catNames.add("No category");
+        catIds.add(null);
+        for (CategoryEntity c : categories) {
+            if ("expense".equals(c.itemType)) { catNames.add(c.name); catIds.add(c.id); }
+        }
+
         View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_card_purchase, null);
         EditText inputDescription = formView.findViewById(R.id.inputDescription);
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDate = formView.findViewById(R.id.inputDate);
+        Spinner spinnerCategory = formView.findViewById(R.id.spinnerCategory);
         inputDescription.setText(purchase.description);
         inputAmount.setText(String.format(Locale.UK, "%.2f", purchase.amount));
         inputDate.setText(datePart);
+
+        spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, catNames));
+        if (purchase.categoryId != null) {
+            for (int i = 0; i < catIds.size(); i++) {
+                if (purchase.categoryId.equals(catIds.get(i))) { spinnerCategory.setSelection(i); break; }
+            }
+        }
 
         AlertDialog dialog = new AlertDialog.Builder(requireContext())
                 .setTitle("Edit purchase")
@@ -424,7 +445,8 @@ public class ItemsFragment extends Fragment {
                         Toast.makeText(getContext(), "Description, amount, and a YYYY-MM-DD date are required", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    repo.updateCardPurchase(purchase.id, desc, amount, date,
+                    Long categoryId = catIds.get(spinnerCategory.getSelectedItemPosition());
+                    repo.updateCardPurchase(purchase.id, desc, amount, date, categoryId,
                             () -> refreshAfterPurchaseChange(purchase, date),
                             this::showError);
                 })
@@ -502,8 +524,17 @@ public class ItemsFragment extends Fragment {
             Toast.makeText(getContext(), "Still loading cards, try again in a moment", Toast.LENGTH_SHORT).show();
             return;
         }
+        List<String> catNames = new ArrayList<>();
+        List<Long> catIds = new ArrayList<>();
+        catNames.add("No category");
+        catIds.add(null);
+        for (CategoryEntity c : categories) {
+            if ("expense".equals(c.itemType)) { catNames.add(c.name); catIds.add(c.id); }
+        }
+
         View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_quick_add_purchase, null);
         Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);
+        Spinner spinnerCategory = formView.findViewById(R.id.spinnerCategory);
         EditText inputDescription = formView.findViewById(R.id.inputDescription);
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDate = formView.findViewById(R.id.inputDate);
@@ -512,6 +543,8 @@ public class ItemsFragment extends Fragment {
         for (CreditCardEntity c : creditCards) cardNames.add(c.name);
         spinnerCard.setAdapter(new ArrayAdapter<>(requireContext(),
                 android.R.layout.simple_spinner_dropdown_item, cardNames));
+        spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, catNames));
 
         // Default to Visacard if present
         for (int i = 0; i < creditCards.size(); i++) {
@@ -539,7 +572,8 @@ public class ItemsFragment extends Fragment {
                         Toast.makeText(getContext(), "Description, amount, and date are required", Toast.LENGTH_SHORT).show();
                         return;
                     }
-                    repo.addCardPurchase(card.id, desc, amount, date, () -> {
+                    Long categoryId = catIds.get(spinnerCategory.getSelectedItemPosition());
+                    repo.addCardPurchase(card.id, desc, amount, date, categoryId, () -> {
                         loadEntries();
                         int[] period = paymentPeriodFor(card, date);
                         repo.loadPeriod(period[0], period[1], (entries, fromCache) -> {});
@@ -593,6 +627,55 @@ public class ItemsFragment extends Fragment {
                     repo.addEntry(entry, () -> {
                         loadEntries();
                         loadBalance();
+                    }, this::showError);
+                })
+                .show();
+    }
+
+    private void showCategoriesDialog() {
+        String[] typeLabels = {"Expense", "Income", "Savings"};
+        String[] typeValues = {"expense", "income", "savings"};
+        int[] selectedType = {0};
+
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(getContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad * 2, pad, pad * 2, 0);
+
+        android.widget.TextView existingLabel = new android.widget.TextView(getContext());
+        existingLabel.setText(categories.isEmpty() ? "No categories yet" :
+                categories.stream().map(c -> c.name + " (" + c.itemType + ")").collect(java.util.stream.Collectors.joining(", ")));
+        existingLabel.setTextSize(13);
+        layout.addView(existingLabel);
+
+        EditText inputName = new EditText(getContext());
+        inputName.setHint("New category name");
+        inputName.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_CAP_WORDS);
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad;
+        inputName.setLayoutParams(lp);
+        layout.addView(inputName);
+
+        Spinner spinnerType = new Spinner(getContext());
+        spinnerType.setAdapter(new ArrayAdapter<>(requireContext(),
+                android.R.layout.simple_spinner_dropdown_item, typeLabels));
+        spinnerType.setLayoutParams(lp);
+        layout.addView(spinnerType);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Categories")
+                .setView(layout)
+                .setNegativeButton("Close", null)
+                .setPositiveButton("Add", (d, w) -> {
+                    String name = inputName.getText().toString().trim();
+                    if (name.isEmpty()) return;
+                    String itemType = typeValues[spinnerType.getSelectedItemPosition()];
+                    int sortOrder = (int) categories.stream().filter(c -> c.itemType.equals(itemType)).count();
+                    repo.addCategory(name, itemType, sortOrder, () -> {
+                        repo.getCategories((cats, fromCache) -> { if (!fromCache) categories = new ArrayList<>(cats); });
+                        Toast.makeText(getContext(), name + " added", Toast.LENGTH_SHORT).show();
                     }, this::showError);
                 })
                 .show();

@@ -134,6 +134,15 @@ public class ApiService {
         });
     }
 
+    public void addCategory(String name, String itemType, int sortOrder, Callback<Long> callback) {
+        JSONObject body = new JSONObject();
+        set(body, "name", name);
+        set(body, "item_type", itemType);
+        set(body, "sort_order", sortOrder);
+        Request request = authed(new Request.Builder().url(BASE_URL + "categories").post(jsonBody(body))).build();
+        enqueue(request, idCallback(callback));
+    }
+
     private CategoryEntity parseCategory(JSONObject o) {
         CategoryEntity c = new CategoryEntity();
         c.id = o.optLong("id");
@@ -208,6 +217,7 @@ public class ApiService {
         p.amount = o.optDouble("amount", 0);
         p.purchaseDate = o.optString("purchase_date");
         p.recurringPurchaseId = o.isNull("recurring_purchase_id") ? null : o.optLong("recurring_purchase_id");
+        p.categoryId = o.isNull("category_id") ? null : o.optLong("category_id");
         return p;
     }
 
@@ -255,11 +265,12 @@ public class ApiService {
         return r;
     }
 
-    public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso, Callback<Void> callback) {
+    public void updateCardPurchase(long id, String description, double amount, String purchaseDateIso, Long categoryId, Callback<Void> callback) {
         JSONObject body = new JSONObject();
         set(body, "description", description);
         set(body, "amount", amount);
         set(body, "purchase_date", purchaseDateIso);
+        if (categoryId != null) set(body, "category_id", categoryId);
         Request request = authed(new Request.Builder().url(BASE_URL + "card-purchases/" + id).put(jsonBody(body))).build();
         enqueue(request, voidCallback(callback));
     }
@@ -271,12 +282,13 @@ public class ApiService {
 
     /** Logs a real purchase against a card; the server recalculates that purchase's
      *  payment-period entry from the running total of everything logged for it. */
-    public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso, Callback<Long> callback) {
+    public void addCardPurchase(long creditCardId, String description, double amount, String purchaseDateIso, Long categoryId, Callback<Long> callback) {
         JSONObject body = new JSONObject();
         set(body, "credit_card_id", creditCardId);
         set(body, "description", description);
         set(body, "amount", amount);
         set(body, "purchase_date", purchaseDateIso);
+        if (categoryId != null) set(body, "category_id", categoryId);
         Request request = authed(new Request.Builder().url(BASE_URL + "card-purchases").post(jsonBody(body))).build();
         enqueue(request, idCallback(callback));
     }

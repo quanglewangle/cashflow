@@ -7,4 +7,9 @@
         android:title="Balances"
         app:showAsAction="never" />
 
+    <item
+        android:id="@+id/action_categories"
+        android:title="Categories"
+        app:showAsAction="never" />
+
 </menu>

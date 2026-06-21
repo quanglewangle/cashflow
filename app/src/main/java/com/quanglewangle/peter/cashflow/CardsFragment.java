@@ -16,14 +16,17 @@ import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
+import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
 import java.text.DateFormatSymbols;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 
 /** Manage credit cards: name + statement closing day + payment due day. */
 public class CardsFragment extends Fragment {
@@ -114,40 +117,76 @@ public class CardsFragment extends Fragment {
     /** Logs a real purchase against a card; the server works out which payment
      *  period (which month's bill) it lands on from the statement/due dates. */
     private void showAddPurchaseDialog(CreditCardEntity card) {
-        View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_card_purchase, null);
-        EditText inputDescription = formView.findViewById(R.id.inputDescription);
-        EditText inputAmount = formView.findViewById(R.id.inputAmount);
-        EditText inputDate = formView.findViewById(R.id.inputDate);
-        inputDate.setText(new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.UK).format(new java.util.Date()));
+        boolean[] fired = {false};
+        repo.getCategories((cats, fromCache) -> {
+            if (fired[0]) return;
+            if (fromCache && cats.isEmpty()) return;
+            fired[0] = true;
 
-        new AlertDialog.Builder(requireContext())
-                .setTitle("Log purchase on " + card.name)
-                .setView(formView)
-                .setNegativeButton("Cancel", null)
-                .setPositiveButton("Save", (dialog, which) -> {
-                    String description = inputDescription.getText().toString().trim();
-                    Double amount = parseDoubleOrNull(inputAmount.getText().toString());
-                    String date = inputDate.getText().toString().trim();
-                    if (description.isEmpty() || amount == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) {
-                        Toast.makeText(getContext(), "Description, amount, and a YYYY-MM-DD date are required", Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                    int[] period = paymentPeriodFor(card, date);
-                    int payYear = period[0], payMonth = period[1];
-                    repo.addCardPurchase(card.id, description, amount, date, () -> {
-                        // Refresh the payment month's entries so the updated amount is cached
-                        repo.loadPeriod(payYear, payMonth, (entries, fromCache) -> {});
-                        String monthName = new DateFormatSymbols(Locale.UK).getMonths()[payMonth - 1];
-                        if (getContext() != null)
-                            Toast.makeText(getContext(),
-                                    "Logged — " + card.name + " " + monthName + " payment updated",
-                                    Toast.LENGTH_LONG).show();
-                    }, this::showError);
-                })
-                .show();
+            List<String> catNames = new ArrayList<>();
+            List<Long> catIds = new ArrayList<>();
+            catNames.add("No category");
+            catIds.add(null);
+            for (CategoryEntity c : cats) {
+                if ("expense".equals(c.itemType)) {
+                    catNames.add(c.name);
+                    catIds.add(c.id);
+                }
+            }
+
+            View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_card_purchase, null);
+            EditText inputDescription = formView.findViewById(R.id.inputDescription);
+            EditText inputAmount = formView.findViewById(R.id.inputAmount);
+            EditText inputDate = formView.findViewById(R.id.inputDate);
+            android.widget.Spinner spinnerCategory = formView.findViewById(R.id.spinnerCategory);
+            inputDate.setText(new java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.UK).format(new java.util.Date()));
+
+            android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(
+                    requireContext(), android.R.layout.simple_spinner_item, catNames);
+            adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+            spinnerCategory.setAdapter(adapter);
+
+            new AlertDialog.Builder(requireContext())
+                    .setTitle("Log purchase on " + card.name)
+                    .setView(formView)
+                    .setNegativeButton("Cancel", null)
+                    .setPositiveButton("Save", (dialog, which) -> {
+                        String description = inputDescription.getText().toString().trim();
+                        Double amount = parseDoubleOrNull(inputAmount.getText().toString());
+                        String date = inputDate.getText().toString().trim();
+                        if (description.isEmpty() || amount == null || !date.matches("\\d{4}-\\d{2}-\\d{2}")) {
+                            Toast.makeText(getContext(), "Description, amount, and a YYYY-MM-DD date are required", Toast.LENGTH_SHORT).show();
+                            return;
+                        }
+                        Long categoryId = catIds.get(spinnerCategory.getSelectedItemPosition());
+                        int[] period = paymentPeriodFor(card, date);
+                        int payYear = period[0], payMonth = period[1];
+                        repo.addCardPurchase(card.id, description, amount, date, categoryId, () -> {
+                            repo.loadPeriod(payYear, payMonth, (entries, fromCache2) -> {});
+                            String monthName = new DateFormatSymbols(Locale.UK).getMonths()[payMonth - 1];
+                            if (getContext() != null)
+                                Toast.makeText(getContext(),
+                                        "Logged — " + card.name + " " + monthName + " payment updated",
+                                        Toast.LENGTH_LONG).show();
+                        }, this::showError);
+                    })
+                    .show();
+        });
     }
 
     private void showPurchasesDialog(CreditCardEntity card) {
+        boolean[] fired = {false};
+        repo.getCategories((cats, fromCache) -> {
+            if (fired[0]) return;
+            if (fromCache && cats.isEmpty()) return;
+            fired[0] = true;
+            Map<Long, String> catNames = new HashMap<>();
+            for (CategoryEntity c : cats) catNames.put(c.id, c.name);
+            showPurchasesDialogWithCategories(card, catNames);
+        });
+    }
+
+    private void showPurchasesDialogWithCategories(CreditCardEntity card, Map<Long, String> catNames) {
         java.util.Calendar cal = java.util.Calendar.getInstance();
         int[] yr = {cal.get(java.util.Calendar.YEAR)};
         int[] mo = {cal.get(java.util.Calendar.MONTH) + 1};
@@ -221,7 +260,9 @@ public class CardsFragment extends Fragment {
                                 ? p.purchaseDate.substring(8, 10) + " "
                                   + monthNames[Integer.parseInt(p.purchaseDate.substring(5, 7)) - 1].substring(0, 3)
                                 : "";
-                        row.setText(dateStr + "  " + p.description + "  £"
+                        String catStr = p.categoryId != null ? catNames.get(p.categoryId) : null;
+                        String catPart = catStr != null ? " · " + catStr : "";
+                        row.setText(dateStr + "  " + p.description + catPart + "  £"
                                 + String.format(Locale.UK, "%.2f", p.amount));
                         row.setPadding(padPx, padPx / 3, padPx, padPx / 3);
                         final CardPurchase fp = p;
@@ -233,9 +274,9 @@ public class CardsFragment extends Fragment {
                                             + String.format(Locale.UK, "%.2f", fp.amount))
                                     .setPositiveButton("Delete", (d2, w2) ->
                                             repo.deleteCardPurchase(fp.id, () -> {
-                                                showPurchasesDialog(card);
+                                                showPurchasesDialogWithCategories(card, catNames);
                                             }, this::showError))
-                                    .setNegativeButton("Cancel", (d2, w2) -> showPurchasesDialog(card))
+                                    .setNegativeButton("Cancel", (d2, w2) -> showPurchasesDialogWithCategories(card, catNames))
                                     .show();
                         });
                         listContainer.addView(row);
