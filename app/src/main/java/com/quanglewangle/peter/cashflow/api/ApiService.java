@@ -1,6 +1,7 @@
 package com.quanglewangle.peter.cashflow.api;
 
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
+import com.quanglewangle.peter.cashflow.data.CardCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
@@ -480,6 +481,49 @@ public class ApiService {
             }
             @Override public void onError(String error) { callback.onError(error); }
         });
+    }
+
+    // ---- card checkpoints ----
+
+    public void getCardCheckpoints(long creditCardId, Callback<List<CardCheckpoint>> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "card-checkpoints?credit_card_id=" + creditCardId)
+                .build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<CardCheckpoint> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) out.add(parseCardCheckpoint(arr.optJSONObject(i)));
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance, Callback<Long> callback) {
+        JSONObject body = new JSONObject();
+        set(body, "credit_card_id", creditCardId);
+        set(body, "period_year", year);
+        set(body, "period_month", month);
+        set(body, "period_day", day);
+        set(body, "balance", balance);
+        Request request = authed(new Request.Builder().url(BASE_URL + "card-checkpoints").post(jsonBody(body))).build();
+        enqueue(request, idCallback(callback));
+    }
+
+    public void deleteCardCheckpoint(long id, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "card-checkpoints/" + id).delete()).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    private CardCheckpoint parseCardCheckpoint(JSONObject o) {
+        CardCheckpoint c = new CardCheckpoint();
+        c.id = o.optLong("id");
+        c.creditCardId = o.optLong("credit_card_id");
+        c.periodYear = o.optInt("period_year");
+        c.periodMonth = o.optInt("period_month");
+        c.periodDay = o.optInt("period_day", 1);
+        c.balance = o.optDouble("balance", 0);
+        return c;
     }
 
     // ---- balance checkpoints ----

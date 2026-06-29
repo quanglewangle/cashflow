@@ -105,7 +105,10 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         boolean checkpointInserted = checkpointDay <= 0 || Double.isNaN(checkpointBalance);
         for (EntryEntity e : items) {
             int day = e.dueDay != null ? e.dueDay : Integer.MAX_VALUE;
-            if (!checkpointInserted && day >= checkpointDay) {
+            boolean isPaid = "incurred".equals(e.status);
+            // Insert checkpoint before the first entry that is either past the checkpoint day,
+            // or on the checkpoint day but not yet paid.
+            if (!checkpointInserted && (day > checkpointDay || (day == checkpointDay && !isPaid))) {
                 displayRows.add(new CheckpointMarker(checkpointDay, checkpointBalance));
                 checkpointInserted = true;
             }

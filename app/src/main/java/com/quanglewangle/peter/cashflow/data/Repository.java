@@ -5,6 +5,7 @@ import android.os.Handler;
 import android.os.Looper;
 
 import com.quanglewangle.peter.cashflow.api.ApiService;
+import com.quanglewangle.peter.cashflow.data.CardCheckpoint;
 
 import java.util.List;
 import java.util.concurrent.ExecutorService;
@@ -292,6 +293,29 @@ public class Repository {
         api.getForecastDanger(year, month, count, new ApiService.Callback<List<ForecastDanger>>() {
             @Override public void onSuccess(List<ForecastDanger> result) { main.post(() -> callback.onSuccess(result)); }
             @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
+
+    // ---- card checkpoints ----
+
+    public void getCardCheckpoints(long creditCardId, ListCallback<CardCheckpoint> callback) {
+        api.getCardCheckpoints(creditCardId, new ApiService.Callback<List<CardCheckpoint>>() {
+            @Override public void onSuccess(List<CardCheckpoint> result) { main.post(() -> callback.onResult(result, false)); }
+            @Override public void onError(String error) { main.post(() -> callback.onResult(new java.util.ArrayList<>(), false)); }
+        });
+    }
+
+    public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance, Runnable onDone, ErrorCallback onError) {
+        api.addCardCheckpoint(creditCardId, year, month, day, balance, new ApiService.Callback<Long>() {
+            @Override public void onSuccess(Long id) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
+    public void deleteCardCheckpoint(long id, Runnable onDone, ErrorCallback onError) {
+        api.deleteCardCheckpoint(id, new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
         });
     }
 

@@ -15,6 +15,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
+import com.quanglewangle.peter.cashflow.data.CardCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
@@ -53,7 +54,8 @@ public class CardsFragment extends Fragment {
         // Logging a purchase is the everyday action; editing a card's own
         // parameters (name/dates) is rare, so it's tucked behind the edit icon.
         adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog,
-                this::showPurchasesDialog, this::showSubscriptionsDialog, this::showEditDialog);
+                this::showPurchasesDialog, this::showSubscriptionsDialog,
+                this::showCheckpointsDialog, this::showEditDialog);
         recyclerView.setAdapter(adapter);
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
@@ -387,6 +389,133 @@ public class CardsFragment extends Fragment {
                             () -> showSubscriptionsDialog(card), this::showError);
                 })
                 .show();
+    }
+
+    private void showCheckpointsDialog(CreditCardEntity card) {
+        repo.getCardCheckpoints(card.id, (checkpoints, fromCache) -> {
+            if (getContext() == null) return;
+
+            int padPx = (int) (16 * getResources().getDisplayMetrics().density);
+            String[] monthNames = new java.text.DateFormatSymbols(Locale.UK).getMonths();
+
+            android.widget.LinearLayout root = new android.widget.LinearLayout(getContext());
+            root.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+            int maxScrollPx = (int) (240 * getResources().getDisplayMetrics().density);
+            android.widget.ScrollView scrollView = new android.widget.ScrollView(getContext());
+            android.widget.LinearLayout listContainer = new android.widget.LinearLayout(getContext());
+            listContainer.setOrientation(android.widget.LinearLayout.VERTICAL);
+            scrollView.addView(listContainer);
+            root.addView(scrollView, new android.widget.LinearLayout.LayoutParams(
+                    android.widget.LinearLayout.LayoutParams.MATCH_PARENT, maxScrollPx));
+
+            AlertDialog[] dialog = {null};
+            Runnable refresh = () -> showCheckpointsDialog(card);
+
+            if (checkpoints.isEmpty()) {
+                android.widget.TextView empty = new android.widget.TextView(getContext());
+                empty.setText("No checkpoints yet");
+                empty.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+                listContainer.addView(empty);
+            } else {
+                for (CardCheckpoint cp : checkpoints) {
+                    String label = Util.ordinal(cp.periodDay) + " "
+                            + monthNames[cp.periodMonth - 1] + " " + cp.periodYear
+                            + "  —  £" + String.format(Locale.UK, "%.2f", cp.balance);
+                    android.widget.TextView row = new android.widget.TextView(getContext());
+                    row.setText(label);
+                    row.setPadding(padPx, padPx / 3, padPx, padPx / 3);
+                    row.setOnClickListener(v -> {
+                        if (dialog[0] != null) dialog[0].dismiss();
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle("Delete checkpoint?")
+                                .setMessage(label)
+                                .setPositiveButton("Delete", (d2, w2) ->
+                                        repo.deleteCardCheckpoint(cp.id, refresh, this::showError))
+                                .setNegativeButton("Cancel", (d2, w2) -> showCheckpointsDialog(card))
+                                .show();
+                    });
+                    listContainer.addView(row);
+                }
+            }
+
+            dialog[0] = new AlertDialog.Builder(requireContext())
+                    .setTitle(card.name + " checkpoints")
+                    .setView(root)
+                    .setPositiveButton("Add checkpoint", (d, w) -> {
+                        if (dialog[0] != null) dialog[0].dismiss();
+                        showAddCheckpointDialog(card);
+                    })
+                    .setNegativeButton("Close", null)
+                    .show();
+        });
+    }
+
+    private void showAddCheckpointDialog(CreditCardEntity card) {
+        android.widget.LinearLayout layout = new android.widget.LinearLayout(getContext());
+        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        layout.setPadding(pad * 2, pad, pad * 2, 0);
+
+        java.util.Calendar now = java.util.Calendar.getInstance();
+
+        EditText inputYear = new EditText(getContext());
+        inputYear.setHint("Year");
+        inputYear.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputYear.setText(String.valueOf(now.get(java.util.Calendar.YEAR)));
+        layout.addView(inputYear);
+
+        android.widget.LinearLayout.LayoutParams lp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = pad;
+
+        EditText inputMonth = new EditText(getContext());
+        inputMonth.setHint("Month (1–12)");
+        inputMonth.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputMonth.setText(String.valueOf(now.get(java.util.Calendar.MONTH) + 1));
+        inputMonth.setLayoutParams(lp);
+        layout.addView(inputMonth);
+
+        EditText inputDay = new EditText(getContext());
+        inputDay.setHint("Day (1–31)");
+        inputDay.setInputType(android.text.InputType.TYPE_CLASS_NUMBER);
+        inputDay.setText(String.valueOf(now.get(java.util.Calendar.DAY_OF_MONTH)));
+        inputDay.setLayoutParams(lp);
+        layout.addView(inputDay);
+
+        EditText inputBalance = new EditText(getContext());
+        inputBalance.setHint("Balance owed (£)");
+        inputBalance.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        inputBalance.setLayoutParams(lp);
+        layout.addView(inputBalance);
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Add checkpoint — " + card.name)
+                .setView(layout)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    Integer year = parseIntOrNull(inputYear.getText().toString());
+                    Integer month = parseDay(inputMonth.getText().toString());
+                    Integer day = parseDay(inputDay.getText().toString());
+                    Double balance = parseDoubleOrNull(inputBalance.getText().toString());
+                    if (year == null || month == null || month < 1 || month > 12 || day == null || balance == null) {
+                        Toast.makeText(getContext(), "A valid year, month (1–12), day, and balance are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    repo.addCardCheckpoint(card.id, year, month, day, balance,
+                            () -> showCheckpointsDialog(card), this::showError);
+                })
+                .show();
+    }
+
+    @Nullable
+    private Integer parseIntOrNull(String s) {
+        try {
+            return Integer.parseInt(s.trim());
+        } catch (NumberFormatException e) {
+            return null;
+        }
     }
 
     private void showError(String error) {

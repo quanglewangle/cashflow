@@ -26,16 +26,19 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
     private final OnItemClick onViewPurchases;
     /** The subscriptions icon manages recurring charges on this card. */
     private final OnItemClick onSubscriptions;
+    /** The checkpoint flag records the actual balance owed on the card. */
+    private final OnItemClick onCheckpoints;
     /** The edit icon is the rare-case path to changing the card's own parameters. */
     private final OnItemClick onEdit;
 
     public CreditCardAdapter(List<CreditCardEntity> items, OnItemClick onLogPurchase,
                              OnItemClick onViewPurchases, OnItemClick onSubscriptions,
-                             OnItemClick onEdit) {
+                             OnItemClick onCheckpoints, OnItemClick onEdit) {
         this.items = items;
         this.onLogPurchase = onLogPurchase;
         this.onViewPurchases = onViewPurchases;
         this.onSubscriptions = onSubscriptions;
+        this.onCheckpoints = onCheckpoints;
         this.onEdit = onEdit;
     }
 
@@ -60,6 +63,7 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
         holder.itemView.setOnClickListener(v -> onLogPurchase.onClick(card));
         holder.purchasesButton.setOnClickListener(v -> onViewPurchases.onClick(card));
         holder.subscriptionsButton.setOnClickListener(v -> onSubscriptions.onClick(card));
+        holder.checkpointsButton.setOnClickListener(v -> onCheckpoints.onClick(card));
         holder.editButton.setOnClickListener(v -> onEdit.onClick(card));
     }
 
@@ -70,7 +74,7 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
 
     static class ViewHolder extends RecyclerView.ViewHolder {
         TextView name, dates;
-        ImageButton purchasesButton, subscriptionsButton, editButton;
+        ImageButton purchasesButton, subscriptionsButton, checkpointsButton, editButton;
 
         ViewHolder(View itemView) {
             super(itemView);
@@ -78,6 +82,7 @@ public class CreditCardAdapter extends RecyclerView.Adapter<CreditCardAdapter.Vi
             dates = itemView.findViewById(R.id.dates);
             purchasesButton = itemView.findViewById(R.id.purchasesButton);
             subscriptionsButton = itemView.findViewById(R.id.subscriptionsButton);
+            checkpointsButton = itemView.findViewById(R.id.checkpointsButton);
             editButton = itemView.findViewById(R.id.editButton);
         }
     }
