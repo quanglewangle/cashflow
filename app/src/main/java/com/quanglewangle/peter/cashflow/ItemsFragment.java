@@ -47,11 +47,14 @@ public class ItemsFragment extends Fragment {
     private static final String[] FREQUENCIES = {"monthly", "three_monthly", "four_weekly", "last_working_day", "annual", "irregular"};
 
     private SwipeRefreshLayout swipeRefresh;
+    private RecyclerView recyclerView;
     private RecurringItemAdapter adapter;
     private Repository repo;
     private TextView monthLabel, broughtFwd, carriedFwd, nowBalance;
     private View nowBalanceSection;
     private int displayYear, displayMonth;
+    private boolean needsScrollToToday = false;
+    private double serverCarriedForward = Double.NaN;
 
     private List<CategoryEntity> categories = new ArrayList<>();
     private List<CreditCardEntity> creditCards = new ArrayList<>();
@@ -89,6 +92,7 @@ public class ItemsFragment extends Fragment {
         Calendar now = Calendar.getInstance();
         displayYear = now.get(Calendar.YEAR);
         displayMonth = now.get(Calendar.MONTH) + 1;
+        needsScrollToToday = true;
 
         monthLabel = view.findViewById(R.id.monthLabel);
         broughtFwd = view.findViewById(R.id.broughtFwd);
@@ -107,6 +111,7 @@ public class ItemsFragment extends Fragment {
             adapter.setOneOffEntries(new ArrayList<>());
             adapter.setEntryAmounts(new ArrayList<>());
             adapter.setCardPurchases(new ArrayList<>());
+            needsScrollToToday = isCurrentMonthDisplayed();
             loadBalance();
             loadEntries();
         });
@@ -118,6 +123,7 @@ public class ItemsFragment extends Fragment {
             adapter.setOneOffEntries(new ArrayList<>());
             adapter.setEntryAmounts(new ArrayList<>());
             adapter.setCardPurchases(new ArrayList<>());
+            needsScrollToToday = isCurrentMonthDisplayed();
             loadBalance();
             loadEntries();
         });
@@ -133,7 +139,7 @@ public class ItemsFragment extends Fragment {
         view.findViewById(R.id.fabAddOneOff).setOnClickListener(v -> showAddOneOffDialog());
 
         swipeRefresh = view.findViewById(R.id.swipeRefresh);
-        RecyclerView recyclerView = view.findViewById(R.id.recyclerView);
+        recyclerView = view.findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(getContext()));
 
         adapter = new RecurringItemAdapter(new ArrayList<>(), this::showEditDialog,
@@ -184,11 +190,29 @@ public class ItemsFragment extends Fragment {
             adapter.setEntryAmounts(entries);
             updateBalanceLabels();
             updateNowBalance();
+            if (!fromCache && needsScrollToToday) {
+                needsScrollToToday = false;
+                scrollToToday();
+            }
         });
         repo.getCardPurchasesByMonth(displayYear, displayMonth, (purchases, fromCache) -> {
             if (getContext() == null) return;
             adapter.setCardPurchases(purchases);
             updateNowBalance();
+        });
+    }
+
+    private boolean isCurrentMonthDisplayed() {
+        Calendar now = Calendar.getInstance();
+        return displayYear == now.get(Calendar.YEAR) && displayMonth == now.get(Calendar.MONTH) + 1;
+    }
+
+    private void scrollToToday() {
+        int pos = adapter.getTodayPosition();
+        if (pos < 0) return;
+        recyclerView.post(() -> {
+            LinearLayoutManager lm = (LinearLayoutManager) recyclerView.getLayoutManager();
+            if (lm != null) lm.scrollToPositionWithOffset(pos, recyclerView.getHeight() / 2);
         });
     }
 
@@ -204,16 +228,16 @@ public class ItemsFragment extends Fragment {
     private void updateBalanceLabels() {
         if (getContext() == null) return;
         double bf = adapter.getChainedBroughtForward();
-        double cf = adapter.getFinalRunningBalance();
         broughtFwd.setText(Double.isNaN(bf) ? ""
                 : String.format(Locale.UK, "Brought fwd: £%.2f", bf));
-        carriedFwd.setText(Double.isNaN(cf) ? ""
-                : String.format(Locale.UK, "Carried fwd: £%.2f", cf));
+        carriedFwd.setText(Double.isNaN(serverCarriedForward) ? ""
+                : String.format(Locale.UK, "Carried fwd: £%.2f", serverCarriedForward));
     }
 
     private void loadBalance() {
         broughtFwd.setText("");
         carriedFwd.setText("");
+        serverCarriedForward = Double.NaN;
         nowBalanceSection.setVisibility(View.GONE);
         int year = displayYear;
         int month = displayMonth;
@@ -222,6 +246,7 @@ public class ItemsFragment extends Fragment {
             @Override public void onSuccess(List<ForecastSummary> result) {
                 if (getContext() == null || result.isEmpty()) return;
                 adapter.setBroughtForward(result.get(0).broughtForward);
+                serverCarriedForward = result.get(0).carriedForward;
                 updateBalanceLabels();
                 updateNowBalance();
             }

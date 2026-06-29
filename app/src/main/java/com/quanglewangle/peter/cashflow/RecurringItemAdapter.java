@@ -214,7 +214,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         for (int i = 0; i < sortedContentRows.size(); i++) {
             Object row = sortedContentRows.get(i);
             int day = dayOf(row);
-            boolean show = suppressBefore == 0 || day >= suppressBefore;
+            // Paid entries on the checkpoint day are already reflected in the checkpoint
+            // balance — suppress them so they aren't double-counted.
+            boolean show = suppressBefore == 0
+                    || day > suppressBefore
+                    || (day == suppressBefore && !isIncurred(row));
             if (show && !Double.isNaN(balance)) {
                 double amount = effectiveAmount(row);
                 if (!Double.isNaN(amount)) {
@@ -239,7 +243,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
         for (Object row : sortedContentRows) {
             int day = dayOf(row);
-            if (hasCheckpointHere && !checkpointInserted && day >= checkpointDay) {
+            if (hasCheckpointHere && !checkpointInserted
+                    && (day > checkpointDay || (day == checkpointDay && !isIncurred(row)))) {
                 displayRows.add(new CheckpointMarker(checkpointDay, checkpointBalance));
                 checkpointInserted = true;
             }
@@ -379,6 +384,13 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         }
         int d = effectiveDay(item);
         return d > 0 ? Util.ordinal(d) : "—";
+    }
+
+    public int getTodayPosition() {
+        for (int i = 0; i < displayRows.size(); i++) {
+            if (displayRows.get(i) instanceof TodayMarker) return i;
+        }
+        return -1;
     }
 
     // ---- RecyclerView ----
