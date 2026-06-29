@@ -258,6 +258,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private double todayBalance(int todayDay) {
+        // If today's checkpoint exists, it IS the current balance.
+        if (checkpointYear == displayYear && checkpointMonth == displayMonth
+                && checkpointDay == todayDay && !Double.isNaN(checkpointBalance)) {
+            return checkpointBalance;
+        }
         double result = computeChainedBroughtForward();
         for (int i = 0; i < sortedContentRows.size(); i++) {
             if (dayOf(sortedContentRows.get(i)) < todayDay && !Double.isNaN(runningBalances[i])) {
@@ -548,6 +553,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         if (displayYear != now.get(Calendar.YEAR) || displayMonth != now.get(Calendar.MONTH) + 1)
             return Double.NaN;
         int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        // If today's checkpoint exists, it IS the current balance — don't apply any items on top.
+        if (checkpointYear == displayYear && checkpointMonth == displayMonth
+                && checkpointDay == todayDay && !Double.isNaN(checkpointBalance)) {
+            return checkpointBalance;
+        }
         // Start from the balance just before today's items
         double result = computeChainedBroughtForward();
         for (int i = 0; i < sortedContentRows.size(); i++) {
