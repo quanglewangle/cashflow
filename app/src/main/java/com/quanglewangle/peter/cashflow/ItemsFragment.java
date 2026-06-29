@@ -44,7 +44,7 @@ import java.util.Locale;
 public class ItemsFragment extends Fragment {
 
     private static final String[] ITEM_TYPES = {"income", "expense", "savings"};
-    private static final String[] FREQUENCIES = {"monthly", "four_weekly", "last_working_day", "annual", "irregular"};
+    private static final String[] FREQUENCIES = {"monthly", "three_monthly", "four_weekly", "last_working_day", "annual", "irregular"};
 
     private SwipeRefreshLayout swipeRefresh;
     private RecurringItemAdapter adapter;

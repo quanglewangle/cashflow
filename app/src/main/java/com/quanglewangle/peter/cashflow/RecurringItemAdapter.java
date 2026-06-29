@@ -473,7 +473,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.dueDay.setText(effectiveDayLabel(item));
             String subtitle = "annual".equals(item.frequency)
                     ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual")
-                    : "last_working_day".equals(item.frequency) ? "last working day" : "";
+                    : "last_working_day".equals(item.frequency) ? "last working day"
+                    : "three_monthly".equals(item.frequency) ? "3 monthly"
+                    : "";
             ivh.subtitle.setText(subtitle);
             double dispAmount = effectiveAmount(item);
             ivh.amount.setText(!Double.isNaN(dispAmount)
