@@ -233,6 +233,11 @@ public class CardsFragment extends Fragment {
         totalView.setTextSize(15);
         root.addView(totalView);
 
+        // Fetch all checkpoints for this card once; the load lambda reads from this.
+        @SuppressWarnings("unchecked")
+        List<CardCheckpoint>[] allCheckpoints = new List[]{new ArrayList<>()};
+        repo.getCardCheckpoints(card.id, (cps, fromCache) -> allCheckpoints[0] = cps);
+
         AlertDialog[] dialog = {null};
         Runnable[] load = {null};
         load[0] = () -> {
@@ -246,8 +251,16 @@ public class CardsFragment extends Fragment {
                     if (p.creditCardId == card.id) filtered.add(p);
                 }
                 filtered.sort((a, b) -> a.purchaseDate.compareTo(b.purchaseDate));
+
+                // Checkpoints for this month, sorted by day.
+                List<CardCheckpoint> monthCheckpoints = new ArrayList<>();
+                for (CardCheckpoint cp : allCheckpoints[0]) {
+                    if (cp.periodYear == yr[0] && cp.periodMonth == mo[0]) monthCheckpoints.add(cp);
+                }
+                monthCheckpoints.sort((a, b) -> Integer.compare(a.periodDay, b.periodDay));
+
                 listContainer.removeAllViews();
-                if (filtered.isEmpty()) {
+                if (filtered.isEmpty() && monthCheckpoints.isEmpty()) {
                     android.widget.TextView empty = new android.widget.TextView(getContext());
                     empty.setText("No purchases this month");
                     empty.setPadding(padPx, padPx / 2, padPx, padPx / 2);
@@ -255,7 +268,16 @@ public class CardsFragment extends Fragment {
                     totalView.setText("");
                 } else {
                     double total = 0;
+                    int cpIdx = 0;
                     for (CardPurchase p : filtered) {
+                        int purchaseDay = p.purchaseDate.length() >= 10
+                                ? Integer.parseInt(p.purchaseDate.substring(8, 10)) : 0;
+                        // Insert any checkpoints that fall on or before this purchase's day.
+                        while (cpIdx < monthCheckpoints.size()
+                                && monthCheckpoints.get(cpIdx).periodDay <= purchaseDay) {
+                            listContainer.addView(makeCheckpointRow(monthCheckpoints.get(cpIdx), padPx));
+                            cpIdx++;
+                        }
                         total += p.amount;
                         android.widget.TextView row = new android.widget.TextView(getContext());
                         String dateStr = p.purchaseDate.length() >= 10
@@ -283,7 +305,12 @@ public class CardsFragment extends Fragment {
                         });
                         listContainer.addView(row);
                     }
-                    totalView.setText("Total: £" + String.format(Locale.UK, "%.2f", total));
+                    // Any remaining checkpoints after all purchases.
+                    while (cpIdx < monthCheckpoints.size()) {
+                        listContainer.addView(makeCheckpointRow(monthCheckpoints.get(cpIdx), padPx));
+                        cpIdx++;
+                    }
+                    totalView.setText(filtered.isEmpty() ? "" : "Total: £" + String.format(Locale.UK, "%.2f", total));
                 }
             });
         };
@@ -389,6 +416,18 @@ public class CardsFragment extends Fragment {
                             () -> showSubscriptionsDialog(card), this::showError);
                 })
                 .show();
+    }
+
+    private android.view.View makeCheckpointRow(CardCheckpoint cp, int padPx) {
+        android.widget.TextView v = new android.widget.TextView(getContext());
+        String[] monthNames = new java.text.DateFormatSymbols(Locale.UK).getMonths();
+        v.setText("▶  " + Util.ordinal(cp.periodDay) + " " + monthNames[cp.periodMonth - 1]
+                + "  —  £" + String.format(Locale.UK, "%.2f", cp.balance));
+        v.setTypeface(null, android.graphics.Typeface.BOLD);
+        v.setTextColor(requireContext().getColor(R.color.colorPrimary));
+        v.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+        v.setBackgroundColor(0x0F000080);
+        return v;
     }
 
     private void showCheckpointsDialog(CreditCardEntity card) {
