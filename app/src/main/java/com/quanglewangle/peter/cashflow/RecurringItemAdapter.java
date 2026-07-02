@@ -34,6 +34,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         void onClick(CardPurchase purchase);
     }
 
+    public interface OnEntryClick {
+        void onClick(EntryEntity entry);
+    }
+
     private static final int TYPE_ITEM          = 0;
     private static final int TYPE_TODAY         = 1;
     private static final int TYPE_CARD_PURCHASE = 2;
@@ -81,6 +85,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private final OnItemClick onClick;
     private final OnTodayClick onTodayClick;
     private OnCardPurchaseClick onCardPurchaseClick;
+    private OnEntryClick onEntryClick;
     private int displayYear;
     private int displayMonth;
 
@@ -100,6 +105,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     public void setOnCardPurchaseClick(OnCardPurchaseClick listener) {
         this.onCardPurchaseClick = listener;
+    }
+
+    public void setOnEntryClick(OnEntryClick listener) {
+        this.onEntryClick = listener;
     }
 
     public void setCheckpoint(int year, int month, int day, double balance) {
@@ -523,7 +532,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                     ? String.format(Locale.UK, "£%.2f", amount) : "—");
             ivh.amount.setTextColor(Util.colorForAmount(ctx, entry.itemType, false));
             ivh.cardIcon.setVisibility(View.GONE);
-            ivh.itemView.setOnClickListener(null);
+            ivh.itemView.setOnClickListener(onEntryClick != null
+                    ? v -> onEntryClick.onClick(entry) : null);
         }
 
         if (!Double.isNaN(bal)) {

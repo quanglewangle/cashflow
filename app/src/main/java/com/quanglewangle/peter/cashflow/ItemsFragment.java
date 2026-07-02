@@ -144,6 +144,7 @@ public class ItemsFragment extends Fragment {
         adapter = new RecurringItemAdapter(new ArrayList<>(), this::showEditDialog,
                 this::showCheckpointDialog, displayYear, displayMonth);
         adapter.setOnCardPurchaseClick(this::showEditCardPurchaseDialog);
+        adapter.setOnEntryClick(this::showEditOneOffDialog);
         recyclerView.setAdapter(adapter);
 
         swipeRefresh.setOnRefreshListener(this::loadAll);
@@ -648,6 +649,70 @@ public class ItemsFragment extends Fragment {
                     entry.status = "planned";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     repo.addEntry(entry, () -> {
+                        loadEntries();
+                        loadBalance();
+                    }, this::showError);
+                })
+                .show();
+    }
+
+    private void showEditOneOffDialog(EntryEntity entry) {
+        if (categories.isEmpty()) {
+            showError("Still loading, try again in a moment");
+            return;
+        }
+        View formView = getLayoutInflater().inflate(R.layout.dialog_add_entry, null);
+        EditText inputName = formView.findViewById(R.id.inputName);
+        Spinner spinnerCategory = formView.findViewById(R.id.spinnerCategory);
+        Spinner spinnerItemType = formView.findViewById(R.id.spinnerItemType);
+        EditText inputAmount = formView.findViewById(R.id.inputAmount);
+        EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
+
+        List<String> categoryNames = new ArrayList<>();
+        for (CategoryEntity c : categories) categoryNames.add(c.name);
+        spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
+        spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
+
+        inputName.setText(entry.name);
+        for (int i = 0; i < categories.size(); i++) {
+            if (categories.get(i).id == entry.categoryId) spinnerCategory.setSelection(i);
+        }
+        for (int i = 0; i < ITEM_TYPES.length; i++) {
+            if (ITEM_TYPES[i].equals(entry.itemType)) spinnerItemType.setSelection(i);
+        }
+        double amount = entry.actualAmount != null ? entry.actualAmount : entry.plannedAmount;
+        inputAmount.setText(String.format(Locale.UK, "%.2f", amount));
+        if (entry.dueDay != null) inputDueDay.setText(String.valueOf(entry.dueDay));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Edit one-off entry")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setNeutralButton("Delete", (dialog, which) ->
+                        new AlertDialog.Builder(requireContext())
+                                .setTitle("Delete \"" + entry.name + "\"?")
+                                .setMessage("This cannot be undone.")
+                                .setPositiveButton("Delete", (d2, w2) ->
+                                        repo.deleteEntry(entry.id, () -> {
+                                            loadEntries();
+                                            loadBalance();
+                                        }, this::showError))
+                                .setNegativeButton("Cancel", null)
+                                .show())
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String name = inputName.getText().toString().trim();
+                    Double newAmount = parseDoubleOrNull(inputAmount.getText().toString());
+                    if (name.isEmpty() || newAmount == null) {
+                        showError("Description and amount are required");
+                        return;
+                    }
+                    entry.name = name;
+                    entry.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
+                    entry.itemType = ITEM_TYPES[spinnerItemType.getSelectedItemPosition()];
+                    entry.plannedAmount = newAmount;
+                    if (entry.actualAmount != null) entry.actualAmount = newAmount;
+                    entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
+                    repo.updateEntry(entry, () -> {
                         loadEntries();
                         loadBalance();
                     }, this::showError);
