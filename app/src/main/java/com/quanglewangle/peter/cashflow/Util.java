@@ -92,6 +92,92 @@ class Util {
         }
     }
 
+    /** Evaluates a simple arithmetic expression (+, -, *, /, parentheses, unary minus),
+     *  e.g. "120.50+35-10*2". Returns null if the text is empty or not a valid expression. */
+    static Double evalExpression(String s) {
+        if (s == null) return null;
+        s = s.trim();
+        if (s.isEmpty()) return null;
+        try {
+            ExprParser parser = new ExprParser(s);
+            double result = parser.parseExpression();
+            if (!parser.atEnd()) return null;
+            return result;
+        } catch (RuntimeException e) {
+            return null;
+        }
+    }
+
+    private static class ExprParser {
+        private final String s;
+        private int pos;
+
+        ExprParser(String s) { this.s = s; }
+
+        boolean atEnd() {
+            skipSpaces();
+            return pos >= s.length();
+        }
+
+        double parseExpression() {
+            double value = parseTerm();
+            while (true) {
+                skipSpaces();
+                if (peek('+')) { pos++; value += parseTerm(); }
+                else if (peek('-')) { pos++; value -= parseTerm(); }
+                else break;
+            }
+            return value;
+        }
+
+        private double parseTerm() {
+            double value = parseFactor();
+            while (true) {
+                skipSpaces();
+                if (peek('*')) { pos++; value *= parseFactor(); }
+                else if (peek('/')) {
+                    pos++;
+                    double divisor = parseFactor();
+                    if (divisor == 0) throw new ArithmeticException("division by zero");
+                    value /= divisor;
+                }
+                else break;
+            }
+            return value;
+        }
+
+        private double parseFactor() {
+            skipSpaces();
+            if (peek('-')) { pos++; return -parseFactor(); }
+            if (peek('+')) { pos++; return parseFactor(); }
+            if (peek('(')) {
+                pos++;
+                double value = parseExpression();
+                skipSpaces();
+                if (!peek(')')) throw new IllegalArgumentException("missing )");
+                pos++;
+                return value;
+            }
+            return parseNumber();
+        }
+
+        private double parseNumber() {
+            skipSpaces();
+            int start = pos;
+            while (pos < s.length() && (Character.isDigit(s.charAt(pos)) || s.charAt(pos) == '.')) pos++;
+            if (pos == start) throw new IllegalArgumentException("expected number at " + pos);
+            return Double.parseDouble(s.substring(start, pos));
+        }
+
+        private void skipSpaces() {
+            while (pos < s.length() && Character.isWhitespace(s.charAt(pos))) pos++;
+        }
+
+        private boolean peek(char c) {
+            return pos < s.length() && s.charAt(pos) == c;
+        }
+    }
+
     /** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11-13 -> "th", etc. */
     static String ordinal(int n) {
         if (n % 100 >= 11 && n % 100 <= 13) return n + "th";

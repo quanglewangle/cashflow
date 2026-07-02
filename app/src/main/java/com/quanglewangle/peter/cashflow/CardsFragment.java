@@ -524,8 +524,8 @@ public class CardsFragment extends Fragment {
         layout.addView(inputDay);
 
         EditText inputBalance = new EditText(getContext());
-        inputBalance.setHint("Balance owed (£)");
-        inputBalance.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        inputBalance.setHint("Balance owed (£) — expressions allowed, e.g. 120+35-10");
+        inputBalance.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         inputBalance.setLayoutParams(lp);
         layout.addView(inputBalance);
 
@@ -537,9 +537,9 @@ public class CardsFragment extends Fragment {
                     Integer year = parseIntOrNull(inputYear.getText().toString());
                     Integer month = parseDay(inputMonth.getText().toString());
                     Integer day = parseDay(inputDay.getText().toString());
-                    Double balance = parseDoubleOrNull(inputBalance.getText().toString());
+                    Double balance = Util.evalExpression(inputBalance.getText().toString());
                     if (year == null || month == null || month < 1 || month > 12 || day == null || balance == null) {
-                        Toast.makeText(getContext(), "A valid year, month (1–12), day, and balance are required", Toast.LENGTH_SHORT).show();
+                        Toast.makeText(getContext(), "A valid year, month (1–12), day, and balance/expression are required", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     repo.addCardCheckpoint(card.id, year, month, day, balance,
