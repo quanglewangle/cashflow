@@ -54,7 +54,6 @@ public class ItemsFragment extends Fragment {
     private View nowBalanceSection;
     private int displayYear, displayMonth;
     private boolean needsScrollToToday = false;
-    private double serverCarriedForward = Double.NaN;
 
     private List<CategoryEntity> categories = new ArrayList<>();
     private List<CreditCardEntity> creditCards = new ArrayList<>();
@@ -228,16 +227,16 @@ public class ItemsFragment extends Fragment {
     private void updateBalanceLabels() {
         if (getContext() == null) return;
         double bf = adapter.getChainedBroughtForward();
+        double cf = adapter.getFinalRunningBalance();
         broughtFwd.setText(Double.isNaN(bf) ? ""
                 : String.format(Locale.UK, "Brought fwd: £%.2f", bf));
-        carriedFwd.setText(Double.isNaN(serverCarriedForward) ? ""
-                : String.format(Locale.UK, "Carried fwd: £%.2f", serverCarriedForward));
+        carriedFwd.setText(Double.isNaN(cf) ? ""
+                : String.format(Locale.UK, "Carried fwd: £%.2f", cf));
     }
 
     private void loadBalance() {
         broughtFwd.setText("");
         carriedFwd.setText("");
-        serverCarriedForward = Double.NaN;
         nowBalanceSection.setVisibility(View.GONE);
         int year = displayYear;
         int month = displayMonth;
@@ -246,7 +245,6 @@ public class ItemsFragment extends Fragment {
             @Override public void onSuccess(List<ForecastSummary> result) {
                 if (getContext() == null || result.isEmpty()) return;
                 adapter.setBroughtForward(result.get(0).broughtForward);
-                serverCarriedForward = result.get(0).carriedForward;
                 updateBalanceLabels();
                 updateNowBalance();
             }
