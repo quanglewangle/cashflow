@@ -358,7 +358,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                         if (ay * 12 + am > year * 12 + month) return -1;
                     } catch (NumberFormatException ignored) {}
                 }
-                return item.dueDay != null ? item.dueDay : -1;
+                // Still due this month even with no specific day set -- place it after all
+                // dated items (matches the server, which counts due_day IS NULL entries
+                // unconditionally rather than dropping them).
+                return item.dueDay != null ? item.dueDay : 32;
             }
             case "four_weekly": {
                 if (item.anchorDate != null) {
@@ -371,7 +374,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                 return Util.lastWorkingDayOfMonth(year, month);
             case "annual": {
                 if (item.targetMonth != null && item.targetMonth == month) {
-                    return item.dueDay != null ? item.dueDay : -1;
+                    // Still due this month even with no specific day set -- place it after
+                    // all dated items (matches the server, which counts due_day IS NULL
+                    // entries unconditionally rather than dropping them).
+                    return item.dueDay != null ? item.dueDay : 32;
                 }
                 return -1;
             }
@@ -392,7 +398,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             return sb.toString();
         }
         int d = effectiveDay(item);
-        return d > 0 ? Util.ordinal(d) : "—";
+        return (d > 0 && d < 32) ? Util.ordinal(d) : "—";
     }
 
     public int getTodayPosition() {
