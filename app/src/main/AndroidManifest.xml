@@ -3,6 +3,7 @@
 
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="true"
@@ -24,6 +25,25 @@
         <activity
             android:name=".BalanceCheckpointsActivity"
             android:parentActivityName=".MainActivity" />
+        <activity
+            android:name=".ConfirmCardPurchaseActivity"
+            android:exported="false"
+            android:theme="@style/Theme.Cashflow.Transparent"
+            android:excludeFromRecents="true"
+            android:taskAffinity="" />
+
+        <service
+            android:name=".GooglePayListenerService"
+            android:exported="true"
+            android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE">
+            <intent-filter>
+                <action android:name="android.service.notification.NotificationListenerService" />
+            </intent-filter>
+        </service>
+
+        <receiver
+            android:name=".CardPurchaseActionReceiver"
+            android:exported="false" />
     </application>
 
 </manifest>
