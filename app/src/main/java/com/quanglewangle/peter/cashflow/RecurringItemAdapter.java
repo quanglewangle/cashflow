@@ -67,6 +67,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private java.util.Map<Long, Integer> entryDueDays = new java.util.HashMap<>();
     // Maps recurringItemId → entry status ("planned" / "incurred") for the displayed month.
     private java.util.Map<Long, String> entryStatuses = new java.util.HashMap<>();
+    // Maps recurringItemId → entry item_type ("income" / "expense") for the displayed month.
+    // The template's item_type can be edited after the entry was generated, so this must be
+    // used for balance sign instead -- it's what the server actually summed when it computed
+    // periodNet/carried-forward for this month.
+    private java.util.Map<Long, String> entryItemTypes = new java.util.HashMap<>();
 
     // sortedContentRows = RecurringItemEntity | EntryEntity, sorted by day
     private List<Object> sortedContentRows = new ArrayList<>();
@@ -151,12 +156,14 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         entryAmounts = new java.util.HashMap<>();
         entryDueDays = new java.util.HashMap<>();
         entryStatuses = new java.util.HashMap<>();
+        entryItemTypes = new java.util.HashMap<>();
         for (EntryEntity e : allEntries) {
             if (e.recurringItemId != null) {
                 double amount = e.actualAmount != null ? e.actualAmount : e.plannedAmount;
                 entryAmounts.put(e.recurringItemId, amount);
                 if (e.dueDay != null) entryDueDays.put(e.recurringItemId, e.dueDay);
                 if (e.status != null) entryStatuses.put(e.recurringItemId, e.status);
+                if (e.itemType != null) entryItemTypes.put(e.recurringItemId, e.itemType);
             }
         }
         rebuild();
@@ -335,9 +342,16 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private boolean isIncome(Object row) {
-        if (row instanceof RecurringItemEntity) return "income".equals(((RecurringItemEntity) row).itemType);
+        if (row instanceof RecurringItemEntity) return "income".equals(effectiveItemType((RecurringItemEntity) row));
         if (row instanceof EntryEntity) return "income".equals(((EntryEntity) row).itemType);
         return false;
+    }
+
+    /** The displayed month's entry's item_type if one exists, else the template's own --
+     *  the template can be edited (income/expense) after the entry was already generated. */
+    private String effectiveItemType(RecurringItemEntity item) {
+        String entryType = entryItemTypes.get(item.id);
+        return entryType != null ? entryType : item.itemType;
     }
 
     private int effectiveDay(RecurringItemEntity item) {
@@ -513,7 +527,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.amount.setText(!Double.isNaN(dispAmount)
                     ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");
             paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
-            ivh.amount.setTextColor(Util.colorForAmount(ctx, item.itemType, paidByCard));
+            ivh.amount.setTextColor(Util.colorForAmount(ctx, effectiveItemType(item), paidByCard));
             boolean hasCard = row instanceof RecurringItemEntity
                     && ((RecurringItemEntity) row).creditCardId != null;
             if (hasCard) {
