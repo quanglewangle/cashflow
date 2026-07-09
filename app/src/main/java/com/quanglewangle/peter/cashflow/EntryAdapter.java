@@ -89,7 +89,11 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         for (int i = 0; i < items.size(); i++) {
             EntryEntity e = items.get(i);
             int day = e.dueDay != null ? e.dueDay : Integer.MAX_VALUE;
-            boolean show = !hasCheckpoint || day >= checkpointDay;
+            // Mirrors the server's periodNetFrom: an entry due exactly on the
+            // checkpoint day but already incurred is baked into the checkpoint
+            // balance already, so it must not be added again here.
+            boolean isPaid = "incurred".equals(e.status);
+            boolean show = !hasCheckpoint || day > checkpointDay || (day == checkpointDay && !isPaid);
             if (show && !Double.isNaN(balance)) {
                 double amount = e.actualAmount != null && "incurred".equals(e.status)
                         ? e.actualAmount : e.plannedAmount;
