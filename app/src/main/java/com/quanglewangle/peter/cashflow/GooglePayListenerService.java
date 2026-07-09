@@ -20,6 +20,7 @@ import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -91,6 +92,10 @@ public class GooglePayListenerService extends NotificationListenerService {
         });
     }
 
+    // Two detections landing in the same millisecond would otherwise collide on
+    // System.currentTimeMillis() and silently replace each other's notification.
+    private static final AtomicInteger NEXT_NOTIF_ID = new AtomicInteger(0);
+
     private void showConfirmNotification(String description, double amount, long cardId, String cardName) {
         NotificationManager nm = getSystemService(NotificationManager.class);
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
@@ -98,7 +103,7 @@ public class GooglePayListenerService extends NotificationListenerService {
                     CHANNEL_ID, "Card purchases detected", NotificationManager.IMPORTANCE_DEFAULT));
         }
 
-        int notifId = (int) System.currentTimeMillis();
+        int notifId = NEXT_NOTIF_ID.incrementAndGet();
 
         Intent confirmIntent = new Intent(this, ConfirmCardPurchaseActivity.class)
                 .setFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
