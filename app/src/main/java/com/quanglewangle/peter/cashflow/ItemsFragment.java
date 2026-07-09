@@ -340,6 +340,7 @@ public class ItemsFragment extends Fragment {
         spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
 
         spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
+        spinnerItemType.setSelection(1); // default to expense (more common)
         spinnerFrequency.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, FREQUENCIES));
 
         List<String> cardNames = new ArrayList<>();
