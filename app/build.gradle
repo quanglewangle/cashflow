@@ -6,6 +6,22 @@ def keystoreProps = new Properties()
 def keystoreFile = rootProject.file("keystore.properties")
 if (keystoreFile.exists()) keystoreProps.load(keystoreFile.newDataInputStream())
 
+// Short git commit hash baked into BuildConfig so two installs sharing the
+// same versionCode (e.g. debug builds reinstalled repeatedly during a
+// session) can still be told apart -- see cashflow issue #8 follow-up.
+def gitHash = {
+    try {
+        def stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'rev-parse', '--short', 'HEAD'
+            standardOutput = stdout
+        }
+        return stdout.toString().trim()
+    } catch (Exception ignored) {
+        return "unknown"
+    }
+}.call()
+
 android {
     namespace "com.quanglewangle.peter.cashflow"
     compileSdk 35
@@ -16,6 +32,7 @@ android {
         targetSdk 35
         versionCode 8
         versionName "1.7"
+        buildConfigField "String", "GIT_HASH", "\"${gitHash}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
