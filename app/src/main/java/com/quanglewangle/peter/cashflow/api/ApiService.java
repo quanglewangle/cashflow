@@ -424,6 +424,8 @@ public class ApiService {
         set(body, "status", e.status);
         set(body, "credit_card_id", e.creditCardId);
         set(body, "due_day", e.dueDay);
+        set(body, "decay_per_week", e.decayPerWeek);
+        set(body, "decay_start_date", e.decayStartDate);
         return body;
     }
 
@@ -441,6 +443,9 @@ public class ApiService {
         e.status = o.optString("status", "planned");
         e.creditCardId = o.isNull("credit_card_id") ? null : o.optLong("credit_card_id");
         e.dueDay = o.isNull("due_day") ? null : o.optInt("due_day");
+        e.decayPerWeek = o.isNull("decay_per_week") ? null : o.optDouble("decay_per_week");
+        e.decayStartDate = o.isNull("decay_start_date") ? null : o.optString("decay_start_date");
+        e.effectiveAmount = o.optDouble("effective_amount", e.plannedAmount);
         return e;
     }
 

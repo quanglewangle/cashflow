@@ -665,6 +665,7 @@ public class ItemsFragment extends Fragment {
         Spinner spinnerItemType = formView.findViewById(R.id.spinnerItemType);
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
+        EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
@@ -696,6 +697,7 @@ public class ItemsFragment extends Fragment {
                     entry.plannedAmount = amount;
                     entry.status = "planned";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
+                    entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
                     repo.addEntry(entry, () -> {
                         loadEntries();
                         loadBalance();
@@ -715,6 +717,7 @@ public class ItemsFragment extends Fragment {
         Spinner spinnerItemType = formView.findViewById(R.id.spinnerItemType);
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
+        EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
@@ -728,9 +731,12 @@ public class ItemsFragment extends Fragment {
         for (int i = 0; i < ITEM_TYPES.length; i++) {
             if (ITEM_TYPES[i].equals(entry.itemType)) spinnerItemType.setSelection(i);
         }
+        // Prefill with the undecayed original -- the decayed effectiveAmount is
+        // for display/balance math only, not what you'd want to edit from.
         double amount = entry.actualAmount != null ? entry.actualAmount : entry.plannedAmount;
         inputAmount.setText(String.format(Locale.UK, "%.2f", amount));
         if (entry.dueDay != null) inputDueDay.setText(String.valueOf(entry.dueDay));
+        if (entry.decayPerWeek != null) inputDecayPerWeek.setText(String.format(Locale.UK, "%.2f", entry.decayPerWeek));
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Edit one-off entry")
@@ -760,6 +766,10 @@ public class ItemsFragment extends Fragment {
                     entry.plannedAmount = newAmount;
                     if (entry.actualAmount != null) entry.actualAmount = newAmount;
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
+                    // decayStartDate is left untouched -- the server preserves it (or
+                    // defaults to today only if this is genuinely new) so editing an
+                    // already-decaying entry doesn't restart its clock.
+                    entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
                     repo.updateEntry(entry, () -> {
                         loadEntries();
                         loadBalance();

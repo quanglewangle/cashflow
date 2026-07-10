@@ -96,8 +96,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             boolean isPaid = "incurred".equals(e.status);
             boolean show = !hasCheckpoint || day > checkpointDay || (day == checkpointDay && !isPaid);
             if (show && !Double.isNaN(balance)) {
-                double amount = e.actualAmount != null && "incurred".equals(e.status)
-                        ? e.actualAmount : e.plannedAmount;
+                double amount = e.effectiveAmount;
                 if ("income".equals(e.itemType)) balance += amount;
                 else balance -= amount;
             }
@@ -161,7 +160,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
 
         boolean incurred = "incurred".equals(e.status);
         boolean isIncome = "income".equals(e.itemType);
-        double amount = incurred && e.actualAmount != null ? e.actualAmount : e.plannedAmount;
+        double amount = e.effectiveAmount;
         String prefix = incurred ? (isIncome ? "Received" : "Paid") : "Planned";
         vh.status.setText(String.format(Locale.UK, "%s: £%.2f", prefix, amount));
         vh.status.setTextColor(Util.colorForItemType(vh.itemView.getContext(), e.itemType));

@@ -353,7 +353,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         }
         if (row instanceof EntryEntity) {
             EntryEntity e = (EntryEntity) row;
-            return e.actualAmount != null ? e.actualAmount : e.plannedAmount;
+            return e.effectiveAmount;
         }
         // CardPurchase: informational only, never affects running balance
         return Double.NaN;

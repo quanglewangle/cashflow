@@ -162,6 +162,7 @@ public class EntriesActivity extends AppCompatActivity {
         Spinner spinnerItemType = formView.findViewById(R.id.spinnerItemType);
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
+        EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
@@ -190,6 +191,7 @@ public class EntriesActivity extends AppCompatActivity {
                     entry.plannedAmount = amount;
                     entry.status = "planned";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
+                    entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
                     repo.addEntry(entry, this::loadEntries, this::showError);
                 })
                 .show();

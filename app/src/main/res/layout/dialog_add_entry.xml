@@ -53,4 +53,16 @@
         android:inputType="number"
         android:maxLength="2" />
 
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="Decays by £/week (optional)" />
+    <EditText
+        android:id="@+id/inputDecayPerWeek"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="e.g. 100 -- shrinks the estimate as real purchases replace it"
+        android:inputType="numberDecimal" />
+
 </LinearLayout>

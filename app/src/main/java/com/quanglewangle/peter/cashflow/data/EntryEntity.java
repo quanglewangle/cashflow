@@ -20,4 +20,10 @@ public class EntryEntity {
     public String status;          // planned | incurred
     public Long creditCardId;
     public Integer dueDay;
+    public Double decayPerWeek;      // optional: shrinks effectiveAmount this much per elapsed week
+    public String decayStartDate;    // "2026-07-10T00:00:00Z" -- set once, preserved across edits
+    // effectiveAmount is server-computed (plannedAmount minus decay, floored at
+    // zero, frozen once incurred) -- use for display/balance math. Edit dialogs
+    // should still prefill from plannedAmount, the undecayed original.
+    public double effectiveAmount;
 }

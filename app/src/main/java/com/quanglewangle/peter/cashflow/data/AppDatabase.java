@@ -11,7 +11,8 @@ import androidx.room.RoomDatabase;
         CreditCardEntity.class,
         RecurringItemEntity.class,
         EntryEntity.class
-}, version = 4, exportSchema = false)
+}, version = 5, exportSchema = false)
+// v5: EntryEntity gained decayPerWeek/decayStartDate/effectiveAmount.
 // v4: RecurringItemEntity gained anchorDate. Bump this any time a Room
 // @Entity's fields change -- fallbackToDestructiveMigration() only fires on a
 // version change; without one Room throws on open with an identity-hash
