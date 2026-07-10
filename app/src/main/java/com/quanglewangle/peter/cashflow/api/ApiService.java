@@ -222,6 +222,26 @@ public class ApiService {
         return p;
     }
 
+    public void getCardPaymentBreakdown(long creditCardId, int year, int month, Callback<com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "card-payment-breakdown?credit_card_id=" + creditCardId + "&year=" + year + "&month=" + month)
+                .build();
+        enqueue(request, new Callback<JSONObject>() {
+            @Override public void onSuccess(JSONObject o) {
+                com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown b =
+                        new com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown();
+                if (!o.isNull("checkpoint")) b.checkpoint = parseCardCheckpoint(o.optJSONObject("checkpoint"));
+                JSONArray arr = o.optJSONArray("purchases");
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) b.purchases.add(parseCardPurchase(arr.optJSONObject(i)));
+                }
+                b.total = o.optDouble("total", 0);
+                callback.onSuccess(b);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
     public void deleteRecurringCardPurchase(long id, Callback<Void> callback) {
         Request request = authed(new Request.Builder().url(BASE_URL + "recurring-card-purchases/" + id).delete()).build();
         enqueue(request, voidCallback(callback));

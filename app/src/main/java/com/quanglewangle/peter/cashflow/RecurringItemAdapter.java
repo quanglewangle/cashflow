@@ -38,6 +38,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         void onClick(EntryEntity entry);
     }
 
+    public interface OnCardItemLongClick {
+        void onLongClick(RecurringItemEntity item, int payYear, int payMonth);
+    }
+
     private static final int TYPE_ITEM          = 0;
     private static final int TYPE_TODAY         = 1;
     private static final int TYPE_CARD_PURCHASE = 2;
@@ -91,6 +95,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private final OnTodayClick onTodayClick;
     private OnCardPurchaseClick onCardPurchaseClick;
     private OnEntryClick onEntryClick;
+    private OnCardItemLongClick onCardItemLongClick;
     private int displayYear;
     private int displayMonth;
 
@@ -110,6 +115,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     public void setOnCardPurchaseClick(OnCardPurchaseClick listener) {
         this.onCardPurchaseClick = listener;
+    }
+
+    public void setOnCardItemLongClick(OnCardItemLongClick listener) {
+        this.onCardItemLongClick = listener;
     }
 
     public void setOnEntryClick(OnEntryClick listener) {
@@ -550,6 +559,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                 ivh.cardIcon.setVisibility(View.GONE);
             }
             ivh.itemView.setOnClickListener(v -> onClick.onClick(item));
+            ivh.itemView.setOnLongClickListener(hasCard && onCardItemLongClick != null
+                    ? v -> { onCardItemLongClick.onLongClick(item, displayYear, displayMonth); return true; }
+                    : null);
         } else if (row instanceof EntryEntity) {
             EntryEntity entry = (EntryEntity) row;
             String status = "incurred".equals(entry.status) ? " ✓" : "";

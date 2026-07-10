@@ -145,6 +145,7 @@ public class ItemsFragment extends Fragment {
                 this::showCheckpointDialog, displayYear, displayMonth);
         adapter.setOnCardPurchaseClick(this::showEditCardPurchaseDialog);
         adapter.setOnEntryClick(this::showEditOneOffDialog);
+        adapter.setOnCardItemLongClick(this::showCardPaymentBreakdown);
         recyclerView.setAdapter(adapter);
 
         swipeRefresh.setOnRefreshListener(this::loadAll);
@@ -313,6 +314,45 @@ public class ItemsFragment extends Fragment {
                 })
                 .setNegativeButton("Cancel", null)
                 .show();
+    }
+
+    private void showCardPaymentBreakdown(RecurringItemEntity item, int payYear, int payMonth) {
+        if (item.creditCardId == null) return;
+        repo.getCardPaymentBreakdown(item.creditCardId, payYear, payMonth,
+                new com.quanglewangle.peter.cashflow.api.ApiService.Callback<com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown>() {
+            @Override public void onSuccess(com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown b) {
+                if (getContext() == null) return;
+                StringBuilder sb = new StringBuilder();
+                if (b.checkpoint != null) {
+                    sb.append(String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f\n\n",
+                            Util.ordinal(b.checkpoint.periodDay), b.checkpoint.periodMonth, b.checkpoint.balance));
+                } else {
+                    sb.append("No checkpoint anchors this period — summed from all logged purchases.\n\n");
+                }
+                if (b.purchases.isEmpty()) {
+                    sb.append("No purchases added on top.\n");
+                } else {
+                    for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.purchases) {
+                        String date = p.purchaseDate != null && p.purchaseDate.length() >= 10
+                                ? p.purchaseDate.substring(0, 10) : "";
+                        sb.append(String.format(Locale.UK, "%s  %s — £%.2f\n", date, p.description, p.amount));
+                    }
+                }
+                sb.append(String.format(Locale.UK, "\nTotal: £%.2f", b.total));
+
+                TextView content = new TextView(requireContext());
+                int pad = (int) (16 * getResources().getDisplayMetrics().density);
+                content.setPadding(pad, pad, pad, pad);
+                content.setText(sb.toString());
+
+                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                        .setTitle(item.name + " — how this was calculated")
+                        .setView(content)
+                        .setPositiveButton("Close", null)
+                        .show();
+            }
+            @Override public void onError(String error) { showError(error); }
+        });
     }
 
     private void showEditDialog(@Nullable RecurringItemEntity existing) {

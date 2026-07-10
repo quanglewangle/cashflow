@@ -305,6 +305,17 @@ public class Repository {
         });
     }
 
+    public void getCardPaymentBreakdown(long creditCardId, int year, int month,
+                                         ApiService.Callback<com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown> callback) {
+        api.getCardPaymentBreakdown(creditCardId, year, month,
+                new ApiService.Callback<com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown>() {
+            @Override public void onSuccess(com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown result) {
+                main.post(() -> callback.onSuccess(result));
+            }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
+
     public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance, Runnable onDone, ErrorCallback onError) {
         api.addCardCheckpoint(creditCardId, year, month, day, balance, new ApiService.Callback<Long>() {
             @Override public void onSuccess(Long id) { main.post(onDone); }

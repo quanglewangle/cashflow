@@ -67,6 +67,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     public void setCheckpoint(int day, double balance) {
         this.checkpointDay = day;
         this.checkpointBalance = balance;
+        recomputeRunningBalances();
         buildDisplayRows();
         notifyDataSetChanged();
     }
