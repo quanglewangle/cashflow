@@ -324,13 +324,20 @@ public class ItemsFragment extends Fragment {
                 if (getContext() == null) return;
                 StringBuilder sb = new StringBuilder();
                 if (b.checkpoint != null) {
-                    sb.append(String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f\n\n",
+                    sb.append(String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f",
                             Util.ordinal(b.checkpoint.periodDay), b.checkpoint.periodMonth, b.checkpoint.balance));
+                    if (!b.coveredByCheckpoint.isEmpty()) {
+                        double coveredTotal = 0;
+                        for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.coveredByCheckpoint) coveredTotal += p.amount;
+                        sb.append(String.format(Locale.UK, "\n  (already covers %d purchase%s totalling £%.2f)",
+                                b.coveredByCheckpoint.size(), b.coveredByCheckpoint.size() == 1 ? "" : "s", coveredTotal));
+                    }
+                    sb.append("\n\nAdded since checkpoint:\n");
                 } else {
-                    sb.append("No checkpoint anchors this period — summed from all logged purchases.\n\n");
+                    sb.append("No checkpoint anchors this period — summed from all logged purchases:\n");
                 }
                 if (b.purchases.isEmpty()) {
-                    sb.append("No purchases added on top.\n");
+                    sb.append(b.checkpoint != null ? "  (none)\n" : "No purchases logged.\n");
                 } else {
                     for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.purchases) {
                         String date = p.purchaseDate != null && p.purchaseDate.length() >= 10

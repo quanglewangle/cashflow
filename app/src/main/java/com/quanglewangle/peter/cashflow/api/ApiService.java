@@ -231,6 +231,10 @@ public class ApiService {
                 com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown b =
                         new com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown();
                 if (!o.isNull("checkpoint")) b.checkpoint = parseCardCheckpoint(o.optJSONObject("checkpoint"));
+                JSONArray covered = o.optJSONArray("covered_by_checkpoint");
+                if (covered != null) {
+                    for (int i = 0; i < covered.length(); i++) b.coveredByCheckpoint.add(parseCardPurchase(covered.optJSONObject(i)));
+                }
                 JSONArray arr = o.optJSONArray("purchases");
                 if (arr != null) {
                     for (int i = 0; i < arr.length(); i++) b.purchases.add(parseCardPurchase(arr.optJSONObject(i)));

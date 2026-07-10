@@ -5,6 +5,7 @@ import java.util.List;
 
 public class CardPaymentBreakdown {
     public CardCheckpoint checkpoint; // null if no checkpoint anchors this period
-    public List<CardPurchase> purchases = new ArrayList<>();
+    public List<CardPurchase> coveredByCheckpoint = new ArrayList<>(); // already folded into checkpoint.balance
+    public List<CardPurchase> purchases = new ArrayList<>(); // added on top -- contributes to total
     public double total;
 }
