@@ -32,6 +32,12 @@ public class PayPalReceiptActivity extends AppCompatActivity {
     private static final Pattern DATE_PATTERN =
             Pattern.compile("Transaction date\\s+(\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4})");
 
+    // Guards against the same receipt being shared (or the share intent firing)
+    // twice in quick succession opening two confirm dialogs for one purchase.
+    private static final long DEDUP_WINDOW_MS = 5000;
+    private static String lastKey = null;
+    private static long lastKeyAtMs = 0;
+
     @Override
     protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -79,6 +85,18 @@ public class PayPalReceiptActivity extends AppCompatActivity {
         }
 
         Log.i(TAG, "parsed amount=" + amount + " merchant=" + merchant + " cardName=" + cardName + " date=" + date);
+
+        String key = cardName + "|" + amount + "|" + merchant;
+        long now = System.currentTimeMillis();
+        synchronized (PayPalReceiptActivity.class) {
+            if (key.equals(lastKey) && now - lastKeyAtMs < DEDUP_WINDOW_MS) {
+                Log.i(TAG, "duplicate share ignored: " + key);
+                finish();
+                return;
+            }
+            lastKey = key;
+            lastKeyAtMs = now;
+        }
 
         String finalDate = date;
         Repository repo = Repository.getInstance(getApplicationContext());
