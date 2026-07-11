@@ -666,6 +666,7 @@ public class ItemsFragment extends Fragment {
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
         EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
+        Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
@@ -675,6 +676,10 @@ public class ItemsFragment extends Fragment {
         spinnerItemType.setSelection(1);
         // Default day to today
         inputDueDay.setText(String.valueOf(Calendar.getInstance().get(Calendar.DAY_OF_MONTH)));
+        List<String> cardNames = new ArrayList<>();
+        cardNames.add("(none)");
+        for (CreditCardEntity c : creditCards) cardNames.add(c.name);
+        spinnerCreditCard.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, cardNames));
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Add one-off entry")
@@ -698,6 +703,8 @@ public class ItemsFragment extends Fragment {
                     entry.status = "planned";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
+                    int cardPos = spinnerCreditCard.getSelectedItemPosition();
+                    entry.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
                     repo.addEntry(entry, () -> {
                         loadEntries();
                         loadBalance();
@@ -718,11 +725,16 @@ public class ItemsFragment extends Fragment {
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
         EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
+        Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
         spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
+        List<String> cardNames = new ArrayList<>();
+        cardNames.add("(none)");
+        for (CreditCardEntity c : creditCards) cardNames.add(c.name);
+        spinnerCreditCard.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, cardNames));
 
         inputName.setText(entry.name);
         for (int i = 0; i < categories.size(); i++) {
@@ -737,6 +749,11 @@ public class ItemsFragment extends Fragment {
         inputAmount.setText(String.format(Locale.UK, "%.2f", amount));
         if (entry.dueDay != null) inputDueDay.setText(String.valueOf(entry.dueDay));
         if (entry.decayPerWeek != null) inputDecayPerWeek.setText(String.format(Locale.UK, "%.2f", entry.decayPerWeek));
+        if (entry.creditCardId != null) {
+            for (int i = 0; i < creditCards.size(); i++) {
+                if (creditCards.get(i).id == entry.creditCardId) spinnerCreditCard.setSelection(i + 1);
+            }
+        }
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Edit one-off entry")
@@ -770,6 +787,8 @@ public class ItemsFragment extends Fragment {
                     // defaults to today only if this is genuinely new) so editing an
                     // already-decaying entry doesn't restart its clock.
                     entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
+                    int cardPos = spinnerCreditCard.getSelectedItemPosition();
+                    entry.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
                     repo.updateEntry(entry, () -> {
                         loadEntries();
                         loadBalance();

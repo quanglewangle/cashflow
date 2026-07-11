@@ -16,6 +16,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 import com.quanglewangle.peter.cashflow.api.ApiService;
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
+import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.Repository;
@@ -38,6 +39,7 @@ public class EntriesActivity extends AppCompatActivity {
     private EntryAdapter adapter;
     private Repository repo;
     private List<CategoryEntity> categories = new ArrayList<>();
+    private List<CreditCardEntity> creditCards = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -64,6 +66,7 @@ public class EntriesActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(this::loadEntries);
 
         repo.getCategories((cats, fromCache) -> categories = cats);
+        repo.getCreditCards((cards, fromCache) -> creditCards = cards);
         loadForecast();
         loadEntries();
         loadCheckpoint();
@@ -163,12 +166,17 @@ public class EntriesActivity extends AppCompatActivity {
         EditText inputAmount = formView.findViewById(R.id.inputAmount);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
         EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
+        Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
 
         List<String> categoryNames = new ArrayList<>();
         for (CategoryEntity c : categories) categoryNames.add(c.name);
         spinnerCategory.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
         spinnerItemType.setSelection(1); // default to expense
+        List<String> cardNames = new ArrayList<>();
+        cardNames.add("(none)");
+        for (CreditCardEntity c : creditCards) cardNames.add(c.name);
+        spinnerCreditCard.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, cardNames));
 
         new AlertDialog.Builder(this)
                 .setTitle("Add one-off entry")
@@ -192,6 +200,8 @@ public class EntriesActivity extends AppCompatActivity {
                     entry.status = "planned";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
+                    int cardPos = spinnerCreditCard.getSelectedItemPosition();
+                    entry.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
                     repo.addEntry(entry, this::loadEntries, this::showError);
                 })
                 .show();
