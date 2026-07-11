@@ -31,6 +31,18 @@
             android:theme="@style/Theme.Cashflow.Transparent"
             android:excludeFromRecents="true"
             android:taskAffinity="" />
+        <activity
+            android:name=".PayPalReceiptActivity"
+            android:exported="true"
+            android:theme="@style/Theme.Cashflow.Transparent"
+            android:excludeFromRecents="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
 
         <service
             android:name=".GooglePayListenerService"

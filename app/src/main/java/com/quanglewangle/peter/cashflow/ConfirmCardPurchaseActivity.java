@@ -30,6 +30,7 @@ public class ConfirmCardPurchaseActivity extends AppCompatActivity {
     static final String EXTRA_AMOUNT = "amount";
     static final String EXTRA_CARD_ID = "card_id";
     static final String EXTRA_NOTIF_ID = "notif_id";
+    static final String EXTRA_DATE = "date"; // optional "yyyy-MM-dd"; defaults to today if absent
 
     private Repository repo;
     private List<CategoryEntity> categories = new ArrayList<>();
@@ -44,16 +45,17 @@ public class ConfirmCardPurchaseActivity extends AppCompatActivity {
         double amount = getIntent().getDoubleExtra(EXTRA_AMOUNT, 0);
         long cardId = getIntent().getLongExtra(EXTRA_CARD_ID, -1);
         int notifId = getIntent().getIntExtra(EXTRA_NOTIF_ID, -1);
+        String date = getIntent().getStringExtra(EXTRA_DATE);
         if (notifId != -1) NotificationManagerCompat.from(this).cancel(notifId);
 
         repo.getCategories((cats, fromCache) -> categories = cats);
         repo.getCreditCards((cards, fromCache) -> {
             creditCards = cards;
-            showDialog(description, amount, cardId);
+            showDialog(description, amount, cardId, date);
         });
     }
 
-    private void showDialog(String description, double amount, long cardId) {
+    private void showDialog(String description, double amount, long cardId, @Nullable String prefillDate) {
         if (creditCards.isEmpty()) {
             Toast.makeText(this, "No credit cards configured", Toast.LENGTH_SHORT).show();
             finish();
@@ -87,9 +89,13 @@ public class ConfirmCardPurchaseActivity extends AppCompatActivity {
 
         inputDescription.setText(description);
         inputAmount.setText(String.format(Locale.UK, "%.2f", amount));
-        Calendar now = Calendar.getInstance();
-        inputDate.setText(String.format(Locale.UK, "%04d-%02d-%02d",
-                now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH)));
+        if (prefillDate != null) {
+            inputDate.setText(prefillDate);
+        } else {
+            Calendar now = Calendar.getInstance();
+            inputDate.setText(String.format(Locale.UK, "%04d-%02d-%02d",
+                    now.get(Calendar.YEAR), now.get(Calendar.MONTH) + 1, now.get(Calendar.DAY_OF_MONTH)));
+        }
 
         new AlertDialog.Builder(this)
                 .setTitle("Add card purchase")

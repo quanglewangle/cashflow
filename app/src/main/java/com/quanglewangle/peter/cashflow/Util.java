@@ -9,6 +9,18 @@ import java.util.List;
 class Util {
     private Util() {}
 
+    // Last 4 digits shown in a Google Pay tap-to-pay notification or a PayPal
+    // receipt email -> this app's credit card name. Add an entry here if
+    // another card gets added to either.
+    private static final java.util.Map<String, String> CARD_LAST_FOUR_TO_NAME = new java.util.HashMap<>();
+    static {
+        CARD_LAST_FOUR_TO_NAME.put("7159", "Visacard");
+    }
+
+    static String cardNameForLastFour(String lastFour) {
+        return CARD_LAST_FOUR_TO_NAME.get(lastFour);
+    }
+
     /** income -> blue, expense -> red, everywhere an amount is shown. Savings
      *  isn't part of that distinction, so it keeps the neutral grey used for
      *  secondary text; null (headers/balance rows, not tied to a type at all)

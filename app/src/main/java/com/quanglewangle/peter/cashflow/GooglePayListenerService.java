@@ -16,9 +16,7 @@ import androidx.core.app.NotificationManagerCompat;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
-import java.util.HashMap;
 import java.util.Locale;
-import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.regex.Matcher;
@@ -33,13 +31,6 @@ public class GooglePayListenerService extends NotificationListenerService {
     private static final String PKG = "com.google.android.apps.walletnfcrel";
     private static final String CHANNEL_ID = "gpay_purchase_detected";
     private static final Pattern TX_PATTERN = Pattern.compile("£([0-9]+(?:\\.[0-9]{2})?) with .*••(\\d{4})");
-
-    // Last 4 digits shown in the Google Pay notification -> this app's credit card name.
-    // Add an entry here if another card gets added to Google Pay.
-    private static final Map<String, String> CARD_LAST_FOUR_TO_NAME = new HashMap<>();
-    static {
-        CARD_LAST_FOUR_TO_NAME.put("7159", "Visacard");
-    }
 
     @Override
     public void onListenerConnected() {
@@ -72,7 +63,7 @@ public class GooglePayListenerService extends NotificationListenerService {
             return;
         }
         String lastFour = m.group(2);
-        String cardName = CARD_LAST_FOUR_TO_NAME.get(lastFour);
+        String cardName = Util.cardNameForLastFour(lastFour);
         Log.i(TAG, "parsed amount=" + amount + " lastFour=" + lastFour + " -> cardName=" + cardName);
         if (cardName == null) return; // unrecognised card -- don't guess
 
