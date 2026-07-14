@@ -201,6 +201,15 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private void buildSortedContentRows() {
         sortedContentRows = new ArrayList<>();
         for (RecurringItemEntity item : items) {
+            // An inactive item with no real entry for this period was never
+            // actually generated server-side either (GeneratePeriodEntries only
+            // materializes active items) -- counting it here would be a phantom
+            // expense the server doesn't know about. If a real entry DOES exist
+            // (e.g. it was active when generated, deactivated since), keep it --
+            // the server's own sum doesn't care about the template's current
+            // active flag for entries that already exist.
+            boolean hasRealEntry = entryDueDays.containsKey(item.id) || entryAmounts.containsKey(item.id);
+            if (!item.active && !hasRealEntry) continue;
             if (effectiveDay(item) > 0) sortedContentRows.add(item);
         }
         for (EntryEntity e : oneOffEntries) {
