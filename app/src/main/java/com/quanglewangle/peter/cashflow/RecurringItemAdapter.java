@@ -362,6 +362,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         }
         if (row instanceof EntryEntity) {
             EntryEntity e = (EntryEntity) row;
+            // A one-off tagged with a card is folded into that card's own
+            // repayment entry server-side (see sumPurchasesForPeriod) and
+            // excluded from the server's own forecast totals -- counting it
+            // again here would double it, same reasoning as CardPurchase below.
+            if (e.creditCardId != null) return Double.NaN;
             return e.effectiveAmount;
         }
         // CardPurchase: informational only, never affects running balance

@@ -95,7 +95,13 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             // balance already, so it must not be added again here.
             boolean isPaid = "incurred".equals(e.status);
             boolean show = !hasCheckpoint || day > checkpointDay || (day == checkpointDay && !isPaid);
-            if (show && !Double.isNaN(balance)) {
+            // A one-off tagged with a card is folded into that card's own
+            // repayment entry server-side (see sumPurchasesForPeriod) and
+            // excluded from the server's own forecast totals -- counting it
+            // again here would double it. The card's own repayment entry
+            // (recurringItemId set) is unaffected -- it's still a real expense.
+            boolean foldedIntoCard = e.recurringItemId == null && e.creditCardId != null;
+            if (show && !Double.isNaN(balance) && !foldedIntoCard) {
                 double amount = e.effectiveAmount;
                 if ("income".equals(e.itemType)) balance += amount;
                 else balance -= amount;
