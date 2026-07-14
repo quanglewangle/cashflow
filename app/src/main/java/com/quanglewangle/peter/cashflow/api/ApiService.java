@@ -150,6 +150,7 @@ public class ApiService {
         c.name = o.optString("name");
         c.itemType = o.optString("item_type");
         c.sortOrder = o.optInt("sort_order");
+        c.parentId = o.isNull("parent_id") ? null : o.optLong("parent_id");
         return c;
     }
 

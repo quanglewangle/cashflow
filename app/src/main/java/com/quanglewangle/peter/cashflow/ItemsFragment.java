@@ -382,8 +382,9 @@ public class ItemsFragment extends Fragment {
         Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
         CheckBox checkActive = formView.findViewById(R.id.checkActive);
 
+        List<CategoryEntity> groupedCategories = Util.groupCategoriesByParent(categories);
         List<String> categoryNames = new ArrayList<>();
-        for (CategoryEntity c : categories) categoryNames.add(c.name);
+        for (CategoryEntity c : groupedCategories) categoryNames.add(Util.categoryLabel(c));
         spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
 
         spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
@@ -397,8 +398,8 @@ public class ItemsFragment extends Fragment {
 
         if (existing != null) {
             inputName.setText(existing.name);
-            for (int i = 0; i < categories.size(); i++) {
-                if (categories.get(i).id == existing.categoryId) spinnerCategory.setSelection(i);
+            for (int i = 0; i < groupedCategories.size(); i++) {
+                if (groupedCategories.get(i).id == existing.categoryId) spinnerCategory.setSelection(i);
             }
             for (int i = 0; i < ITEM_TYPES.length; i++) {
                 if (ITEM_TYPES[i].equals(existing.itemType)) spinnerItemType.setSelection(i);
@@ -431,7 +432,7 @@ public class ItemsFragment extends Fragment {
                 .setPositiveButton("Save", (dialog, which) -> {
                     RecurringItemEntity item = existing != null ? existing : new RecurringItemEntity();
                     item.name = inputName.getText().toString().trim();
-                    item.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
+                    item.categoryId = groupedCategories.get(spinnerCategory.getSelectedItemPosition()).id;
                     item.itemType = ITEM_TYPES[spinnerItemType.getSelectedItemPosition()];
                     item.frequency = FREQUENCIES[spinnerFrequency.getSelectedItemPosition()];
                     item.defaultAmount = parseDoubleOrNull(inputAmount.getText().toString());
@@ -480,13 +481,14 @@ public class ItemsFragment extends Fragment {
         String datePart = purchase.purchaseDate != null && purchase.purchaseDate.length() >= 10
                 ? purchase.purchaseDate.substring(0, 10) : "";
 
+        List<CategoryEntity> expenseCats = new ArrayList<>();
+        for (CategoryEntity c : categories) if ("expense".equals(c.itemType)) expenseCats.add(c);
+        List<CategoryEntity> groupedExpenseCats = Util.groupCategoriesByParent(expenseCats);
         List<String> catNames = new ArrayList<>();
         List<Long> catIds = new ArrayList<>();
         catNames.add("No category");
         catIds.add(null);
-        for (CategoryEntity c : categories) {
-            if ("expense".equals(c.itemType)) { catNames.add(c.name); catIds.add(c.id); }
-        }
+        for (CategoryEntity c : groupedExpenseCats) { catNames.add(Util.categoryLabel(c)); catIds.add(c.id); }
 
         View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_card_purchase, null);
         EditText inputDescription = formView.findViewById(R.id.inputDescription);
@@ -596,13 +598,14 @@ public class ItemsFragment extends Fragment {
             Toast.makeText(getContext(), "Still loading cards, try again in a moment", Toast.LENGTH_SHORT).show();
             return;
         }
+        List<CategoryEntity> expenseCatsForPurchase = new ArrayList<>();
+        for (CategoryEntity c : categories) if ("expense".equals(c.itemType)) expenseCatsForPurchase.add(c);
+        List<CategoryEntity> groupedExpenseCatsForPurchase = Util.groupCategoriesByParent(expenseCatsForPurchase);
         List<String> catNames = new ArrayList<>();
         List<Long> catIds = new ArrayList<>();
         catNames.add("No category");
         catIds.add(null);
-        for (CategoryEntity c : categories) {
-            if ("expense".equals(c.itemType)) { catNames.add(c.name); catIds.add(c.id); }
-        }
+        for (CategoryEntity c : groupedExpenseCatsForPurchase) { catNames.add(Util.categoryLabel(c)); catIds.add(c.id); }
 
         View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_quick_add_purchase, null);
         Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);
@@ -668,8 +671,9 @@ public class ItemsFragment extends Fragment {
         EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
         Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
 
+        List<CategoryEntity> groupedCategoriesForOneOff = Util.groupCategoriesByParent(categories);
         List<String> categoryNames = new ArrayList<>();
-        for (CategoryEntity c : categories) categoryNames.add(c.name);
+        for (CategoryEntity c : groupedCategoriesForOneOff) categoryNames.add(Util.categoryLabel(c));
         spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
         // Default to expense (more common)
@@ -694,7 +698,7 @@ public class ItemsFragment extends Fragment {
                     }
                     EntryEntity entry = new EntryEntity();
                     entry.recurringItemId = null;
-                    entry.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
+                    entry.categoryId = groupedCategoriesForOneOff.get(spinnerCategory.getSelectedItemPosition()).id;
                     entry.periodYear = displayYear;
                     entry.periodMonth = displayMonth;
                     entry.name = name;
@@ -727,8 +731,9 @@ public class ItemsFragment extends Fragment {
         EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
         Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
 
+        List<CategoryEntity> groupedCategoriesForEditOneOff = Util.groupCategoriesByParent(categories);
         List<String> categoryNames = new ArrayList<>();
-        for (CategoryEntity c : categories) categoryNames.add(c.name);
+        for (CategoryEntity c : groupedCategoriesForEditOneOff) categoryNames.add(Util.categoryLabel(c));
         spinnerCategory.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
         List<String> cardNames = new ArrayList<>();
@@ -737,8 +742,8 @@ public class ItemsFragment extends Fragment {
         spinnerCreditCard.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, cardNames));
 
         inputName.setText(entry.name);
-        for (int i = 0; i < categories.size(); i++) {
-            if (categories.get(i).id == entry.categoryId) spinnerCategory.setSelection(i);
+        for (int i = 0; i < groupedCategoriesForEditOneOff.size(); i++) {
+            if (groupedCategoriesForEditOneOff.get(i).id == entry.categoryId) spinnerCategory.setSelection(i);
         }
         for (int i = 0; i < ITEM_TYPES.length; i++) {
             if (ITEM_TYPES[i].equals(entry.itemType)) spinnerItemType.setSelection(i);
@@ -778,7 +783,7 @@ public class ItemsFragment extends Fragment {
                         return;
                     }
                     entry.name = name;
-                    entry.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
+                    entry.categoryId = groupedCategoriesForEditOneOff.get(spinnerCategory.getSelectedItemPosition()).id;
                     entry.itemType = ITEM_TYPES[spinnerItemType.getSelectedItemPosition()];
                     entry.plannedAmount = newAmount;
                     if (entry.actualAmount != null) entry.actualAmount = newAmount;

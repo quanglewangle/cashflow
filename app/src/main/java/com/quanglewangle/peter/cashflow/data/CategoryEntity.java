@@ -12,4 +12,5 @@ public class CategoryEntity {
     public String name;
     public String itemType;   // income | expense | savings
     public int sortOrder;
+    public Long parentId;     // null = top-level category
 }

@@ -125,15 +125,16 @@ public class CardsFragment extends Fragment {
             if (fromCache && cats.isEmpty()) return;
             fired[0] = true;
 
+            List<CategoryEntity> expenseCats = new ArrayList<>();
+            for (CategoryEntity c : cats) if ("expense".equals(c.itemType)) expenseCats.add(c);
+            List<CategoryEntity> groupedExpenseCats = Util.groupCategoriesByParent(expenseCats);
             List<String> catNames = new ArrayList<>();
             List<Long> catIds = new ArrayList<>();
             catNames.add("No category");
             catIds.add(null);
-            for (CategoryEntity c : cats) {
-                if ("expense".equals(c.itemType)) {
-                    catNames.add(c.name);
-                    catIds.add(c.id);
-                }
+            for (CategoryEntity c : groupedExpenseCats) {
+                catNames.add(Util.categoryLabel(c));
+                catIds.add(c.id);
             }
 
             View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_add_card_purchase, null);

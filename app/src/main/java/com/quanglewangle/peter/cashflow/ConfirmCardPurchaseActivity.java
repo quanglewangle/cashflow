@@ -62,13 +62,14 @@ public class ConfirmCardPurchaseActivity extends AppCompatActivity {
             return;
         }
 
+        List<CategoryEntity> expenseCats = new ArrayList<>();
+        for (CategoryEntity c : categories) if ("expense".equals(c.itemType)) expenseCats.add(c);
+        List<CategoryEntity> groupedExpenseCats = Util.groupCategoriesByParent(expenseCats);
         List<String> catNames = new ArrayList<>();
         List<Long> catIds = new ArrayList<>();
         catNames.add("No category");
         catIds.add(null);
-        for (CategoryEntity c : categories) {
-            if ("expense".equals(c.itemType)) { catNames.add(c.name); catIds.add(c.id); }
-        }
+        for (CategoryEntity c : groupedExpenseCats) { catNames.add(Util.categoryLabel(c)); catIds.add(c.id); }
 
         View formView = LayoutInflater.from(this).inflate(R.layout.dialog_quick_add_purchase, null);
         Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);

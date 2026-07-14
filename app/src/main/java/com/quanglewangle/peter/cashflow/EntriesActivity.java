@@ -168,8 +168,9 @@ public class EntriesActivity extends AppCompatActivity {
         EditText inputDecayPerWeek = formView.findViewById(R.id.inputDecayPerWeek);
         Spinner spinnerCreditCard = formView.findViewById(R.id.spinnerCreditCard);
 
+        List<CategoryEntity> groupedCategories = Util.groupCategoriesByParent(categories);
         List<String> categoryNames = new ArrayList<>();
-        for (CategoryEntity c : categories) categoryNames.add(c.name);
+        for (CategoryEntity c : groupedCategories) categoryNames.add(Util.categoryLabel(c));
         spinnerCategory.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, categoryNames));
         spinnerItemType.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, ITEM_TYPES));
         spinnerItemType.setSelection(1); // default to expense
@@ -191,7 +192,7 @@ public class EntriesActivity extends AppCompatActivity {
                     }
                     EntryEntity entry = new EntryEntity();
                     entry.recurringItemId = null;
-                    entry.categoryId = categories.get(spinnerCategory.getSelectedItemPosition()).id;
+                    entry.categoryId = groupedCategories.get(spinnerCategory.getSelectedItemPosition()).id;
                     entry.periodYear = year;
                     entry.periodMonth = month;
                     entry.name = name;

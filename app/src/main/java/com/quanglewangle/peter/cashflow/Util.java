@@ -1,10 +1,14 @@
 package com.quanglewangle.peter.cashflow;
 
+import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 
 import java.util.ArrayList;
 import java.util.Calendar;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 class Util {
     private Util() {}
@@ -15,6 +19,37 @@ class Util {
     private static final java.util.Map<String, String> CARD_LAST_FOUR_TO_NAME = new java.util.HashMap<>();
     static {
         CARD_LAST_FOUR_TO_NAME.put("7159", "Visacard");
+    }
+
+    /** Reorders categories so each top-level category is immediately followed by
+     *  its own subcategories, instead of the server's flat sort_order/name
+     *  ordering -- for spinners that should read as a grouped tree. A category
+     *  whose parent isn't in this same list (e.g. filtered out by item_type
+     *  beforehand) is just treated as top-level itself. */
+    static List<CategoryEntity> groupCategoriesByParent(List<CategoryEntity> categories) {
+        Map<Long, CategoryEntity> byId = new HashMap<>();
+        for (CategoryEntity c : categories) byId.put(c.id, c);
+        Map<Long, List<CategoryEntity>> childrenByParent = new LinkedHashMap<>();
+        List<CategoryEntity> tops = new ArrayList<>();
+        for (CategoryEntity c : categories) {
+            if (c.parentId != null && byId.containsKey(c.parentId)) {
+                childrenByParent.computeIfAbsent(c.parentId, k -> new ArrayList<>()).add(c);
+            } else {
+                tops.add(c);
+            }
+        }
+        List<CategoryEntity> result = new ArrayList<>();
+        for (CategoryEntity top : tops) {
+            result.add(top);
+            List<CategoryEntity> children = childrenByParent.get(top.id);
+            if (children != null) result.addAll(children);
+        }
+        return result;
+    }
+
+    /** Display label for a category in a grouped spinner -- subcategories get an indent. */
+    static String categoryLabel(CategoryEntity c) {
+        return c.parentId != null ? "    " + c.name : c.name;
     }
 
     static String cardNameForLastFour(String lastFour) {
