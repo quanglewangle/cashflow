@@ -529,7 +529,8 @@ public class ApiService {
         });
     }
 
-    public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance, Callback<Long> callback) {
+    public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance,
+                                   Callback<com.quanglewangle.peter.cashflow.data.AddCheckpointResult> callback) {
         JSONObject body = new JSONObject();
         set(body, "credit_card_id", creditCardId);
         set(body, "period_year", year);
@@ -537,7 +538,19 @@ public class ApiService {
         set(body, "period_day", day);
         set(body, "balance", balance);
         Request request = authed(new Request.Builder().url(BASE_URL + "card-checkpoints").post(jsonBody(body))).build();
-        enqueue(request, idCallback(callback));
+        enqueue(request, new Callback<JSONObject>() {
+            @Override public void onSuccess(JSONObject o) {
+                com.quanglewangle.peter.cashflow.data.AddCheckpointResult result =
+                        new com.quanglewangle.peter.cashflow.data.AddCheckpointResult();
+                result.id = o.optLong("id");
+                JSONArray arr = o.optJSONArray("existing_one_offs");
+                if (arr != null) {
+                    for (int i = 0; i < arr.length(); i++) result.existingOneOffs.add(parseEntry(arr.optJSONObject(i)));
+                }
+                callback.onSuccess(result);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
     }
 
     public void deleteCardCheckpoint(long id, Callback<Void> callback) {

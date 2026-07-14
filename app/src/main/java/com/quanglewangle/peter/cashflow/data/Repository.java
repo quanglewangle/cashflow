@@ -316,10 +316,11 @@ public class Repository {
         });
     }
 
-    public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance, Runnable onDone, ErrorCallback onError) {
-        api.addCardCheckpoint(creditCardId, year, month, day, balance, new ApiService.Callback<Long>() {
-            @Override public void onSuccess(Long id) { main.post(onDone); }
-            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+    public void addCardCheckpoint(long creditCardId, int year, int month, int day, double balance,
+                                   ApiService.Callback<AddCheckpointResult> callback) {
+        api.addCardCheckpoint(creditCardId, year, month, day, balance, new ApiService.Callback<AddCheckpointResult>() {
+            @Override public void onSuccess(AddCheckpointResult result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
         });
     }
 

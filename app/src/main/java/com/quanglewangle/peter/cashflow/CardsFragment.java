@@ -19,6 +19,7 @@ import com.quanglewangle.peter.cashflow.data.CardCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
+import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
 
@@ -544,8 +545,43 @@ public class CardsFragment extends Fragment {
                         return;
                     }
                     repo.addCardCheckpoint(card.id, year, month, day, balance,
-                            () -> showCheckpointsDialog(card), this::showError);
+                            new com.quanglewangle.peter.cashflow.api.ApiService.Callback<com.quanglewangle.peter.cashflow.data.AddCheckpointResult>() {
+                                @Override public void onSuccess(com.quanglewangle.peter.cashflow.data.AddCheckpointResult result) {
+                                    if (result.existingOneOffs.isEmpty()) {
+                                        showCheckpointsDialog(card);
+                                    } else {
+                                        promptRemoveRedundantOneOffs(card, result.existingOneOffs);
+                                    }
+                                }
+                                @Override public void onError(String error) { showError(error); }
+                            });
                 })
+                .show();
+    }
+
+    // A fresh, verified checkpoint usually makes an existing card-tagged one-off
+    // (e.g. a decaying sundries buffer) for the same payment period redundant --
+    // prompt to remove it instead of it being silently forgotten and left to
+    // double up on the checkpoint it's now covered by.
+    private void promptRemoveRedundantOneOffs(CreditCardEntity card, List<EntryEntity> oneOffs) {
+        String[] labels = new String[oneOffs.size()];
+        boolean[] checked = new boolean[oneOffs.size()];
+        for (int i = 0; i < oneOffs.size(); i++) {
+            EntryEntity e = oneOffs.get(i);
+            labels[i] = e.name + " — £" + String.format(Locale.UK, "%.2f", e.effectiveAmount);
+            checked[i] = true;
+        }
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Remove redundant entries?")
+                .setMessage("This checkpoint likely already covers these — remove them?")
+                .setMultiChoiceItems(labels, checked, (dialog, which, isChecked) -> checked[which] = isChecked)
+                .setPositiveButton("Remove selected", (dialog, which) -> {
+                    for (int i = 0; i < oneOffs.size(); i++) {
+                        if (checked[i]) repo.deleteEntry(oneOffs.get(i).id, () -> {}, this::showError);
+                    }
+                    showCheckpointsDialog(card);
+                })
+                .setNegativeButton("Keep all", (dialog, which) -> showCheckpointsDialog(card))
                 .show();
     }
 
