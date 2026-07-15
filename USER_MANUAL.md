@@ -155,10 +155,8 @@ Categories can have **subcategories** (e.g. Car → Fuel / Insurance /
 Servicing & MOT). Every category picker in the app groups them this
 way automatically.
 
-**Unclassified** is a deliberate catch-all — some purchases are put
-there on purpose to stay vague from other people who use the app, not
-because they weren't worth categorizing properly. Don't assume
-something in Unclassified is a mistake.
+**Unclassified** is a deliberate catch-all, not a mistake — some things
+are put there on purpose.
 
 ## Balance checkpoints (main account)
 
