@@ -240,6 +240,11 @@ public class ApiService {
                 if (arr != null) {
                     for (int i = 0; i < arr.length(); i++) b.purchases.add(parseCardPurchase(arr.optJSONObject(i)));
                 }
+                JSONArray oneOffs = o.optJSONArray("one_offs");
+                if (oneOffs != null) {
+                    for (int i = 0; i < oneOffs.length(); i++) b.oneOffs.add(parseEntry(oneOffs.optJSONObject(i)));
+                }
+                if (!o.isNull("unpaid_prior_bill")) b.unpaidPriorBill = parseEntry(o.optJSONObject("unpaid_prior_bill"));
                 b.total = o.optDouble("total", 0);
                 callback.onSuccess(b);
             }

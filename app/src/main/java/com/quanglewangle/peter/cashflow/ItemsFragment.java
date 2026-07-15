@@ -332,6 +332,10 @@ public class ItemsFragment extends Fragment {
                         sb.append(String.format(Locale.UK, "\n  (already covers %d purchase%s totalling £%.2f)",
                                 b.coveredByCheckpoint.size(), b.coveredByCheckpoint.size() == 1 ? "" : "s", coveredTotal));
                     }
+                    if (b.unpaidPriorBill != null) {
+                        sb.append(String.format(Locale.UK, "\n  (minus %s, still unpaid from last period — £%.2f)",
+                                b.unpaidPriorBill.name, b.unpaidPriorBill.effectiveAmount));
+                    }
                     sb.append("\n\nAdded since checkpoint:\n");
                 } else {
                     sb.append("No checkpoint anchors this period — summed from all logged purchases:\n");
@@ -343,6 +347,14 @@ public class ItemsFragment extends Fragment {
                         String date = p.purchaseDate != null && p.purchaseDate.length() >= 10
                                 ? p.purchaseDate.substring(0, 10) : "";
                         sb.append(String.format(Locale.UK, "%s  %s — £%.2f\n", date, p.description, p.amount));
+                    }
+                }
+                if (!b.oneOffs.isEmpty()) {
+                    sb.append("\nCard-tagged one-offs:\n");
+                    for (EntryEntity e : b.oneOffs) {
+                        boolean isIncome = "income".equals(e.itemType);
+                        sb.append(String.format(Locale.UK, "  %s — %s£%.2f\n",
+                                e.name, isIncome ? "-" : "", e.effectiveAmount));
                     }
                 }
                 sb.append(String.format(Locale.UK, "\nTotal: £%.2f", b.total));
