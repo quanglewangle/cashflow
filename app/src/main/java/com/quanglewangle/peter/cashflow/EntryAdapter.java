@@ -161,7 +161,9 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         EntryEntity e = (EntryEntity) row;
         EntryViewHolder vh = (EntryViewHolder) holder;
 
-        vh.name.setText(e.name);
+        vh.name.setText(e.decayPerWeek != null
+                ? String.format(Locale.UK, "%s (was £%.2f, −£%.2f/wk)", e.name, e.plannedAmount, e.decayPerWeek)
+                : e.name);
         vh.dueDay.setText(e.dueDay != null ? Util.ordinal(e.dueDay) : "—");
 
         boolean incurred = "incurred".equals(e.status);

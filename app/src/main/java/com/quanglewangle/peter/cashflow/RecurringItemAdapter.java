@@ -581,7 +581,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             String status = "incurred".equals(entry.status) ? " ✓" : "";
             ivh.name.setText(entry.name + status);
             ivh.dueDay.setText(entry.dueDay != null ? Util.ordinal(entry.dueDay) : "—");
-            ivh.subtitle.setText("one-off");
+            ivh.subtitle.setText(entry.decayPerWeek != null
+                    ? String.format(Locale.UK, "one-off — was £%.2f, −£%.2f/wk", entry.plannedAmount, entry.decayPerWeek)
+                    : "one-off");
             double amount = effectiveAmount(entry);
             ivh.amount.setText(!Double.isNaN(amount)
                     ? String.format(Locale.UK, "£%.2f", amount) : "—");
