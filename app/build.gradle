@@ -6,6 +6,11 @@ def keystoreProps = new Properties()
 def keystoreFile = rootProject.file("keystore.properties")
 if (keystoreFile.exists()) keystoreProps.load(keystoreFile.newDataInputStream())
 
+def localProps = new Properties()
+def localPropsFile = rootProject.file("local.properties")
+if (localPropsFile.exists()) localProps.load(localPropsFile.newDataInputStream())
+def cashflowWriteToken = localProps.getProperty("cashflow.writeToken", "")
+
 // Short git commit hash baked into BuildConfig so two installs sharing the
 // same versionCode (e.g. debug builds reinstalled repeatedly during a
 // session) can still be told apart -- see cashflow issue #8 follow-up.
@@ -33,6 +38,7 @@ android {
         versionCode 8
         versionName "1.7"
         buildConfigField "String", "GIT_HASH", "\"${gitHash}\""
+        buildConfigField "String", "CASHFLOW_WRITE_TOKEN", "\"${cashflowWriteToken}\""
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }

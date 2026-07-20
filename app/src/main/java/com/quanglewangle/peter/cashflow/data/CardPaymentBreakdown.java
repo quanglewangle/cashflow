@@ -9,5 +9,7 @@ public class CardPaymentBreakdown {
     public List<CardPurchase> purchases = new ArrayList<>(); // added on top -- contributes to total
     public List<EntryEntity> oneOffs = new ArrayList<>(); // card-tagged one-offs added on top (e.g. a sundries buffer)
     public EntryEntity unpaidPriorBill; // null if none -- netted out of total, see backend sumUnpaidPriorCardBills
+    public Long entryId; // the card's own generated entry for this period -- edit this directly for a what-if override
+    public boolean manuallySet; // true if entryId's amount is a what-if override, not auto-calculated
     public double total;
 }

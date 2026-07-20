@@ -57,6 +57,7 @@ public class ItemsFragment extends Fragment {
 
     private List<CategoryEntity> categories = new ArrayList<>();
     private List<CreditCardEntity> creditCards = new ArrayList<>();
+    private List<EntryEntity> currentEntries = new ArrayList<>();
 
     @Nullable
     @Override
@@ -183,6 +184,7 @@ public class ItemsFragment extends Fragment {
     private void loadEntries() {
         repo.loadPeriod(displayYear, displayMonth, (entries, fromCache) -> {
             if (getContext() == null) return;
+            currentEntries = entries;
             List<EntryEntity> oneOffs = new ArrayList<>();
             for (EntryEntity e : entries) {
                 if (e.recurringItemId == null) oneOffs.add(e);
@@ -323,7 +325,10 @@ public class ItemsFragment extends Fragment {
             @Override public void onSuccess(com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown b) {
                 if (getContext() == null) return;
                 StringBuilder sb = new StringBuilder();
-                if (b.checkpoint != null) {
+                if (b.manuallySet) {
+                    sb.append("You've manually set this month's payment as a what-if guess.\n" +
+                            "It'll be used as-is until you record a real checkpoint for this period, which always takes over.\n");
+                } else if (b.checkpoint != null) {
                     sb.append(String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f",
                             Util.ordinal(b.checkpoint.periodDay), b.checkpoint.periodMonth, b.checkpoint.balance));
                     if (!b.coveredByCheckpoint.isEmpty()) {
@@ -340,21 +345,23 @@ public class ItemsFragment extends Fragment {
                 } else {
                     sb.append("No checkpoint anchors this period — summed from all logged purchases:\n");
                 }
-                if (b.purchases.isEmpty()) {
-                    sb.append(b.checkpoint != null ? "  (none)\n" : "No purchases logged.\n");
-                } else {
-                    for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.purchases) {
-                        String date = p.purchaseDate != null && p.purchaseDate.length() >= 10
-                                ? p.purchaseDate.substring(0, 10) : "";
-                        sb.append(String.format(Locale.UK, "%s  %s — £%.2f\n", date, p.description, p.amount));
+                if (!b.manuallySet) {
+                    if (b.purchases.isEmpty()) {
+                        sb.append(b.checkpoint != null ? "  (none)\n" : "No purchases logged.\n");
+                    } else {
+                        for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.purchases) {
+                            String date = p.purchaseDate != null && p.purchaseDate.length() >= 10
+                                    ? p.purchaseDate.substring(0, 10) : "";
+                            sb.append(String.format(Locale.UK, "%s  %s — £%.2f\n", date, p.description, p.amount));
+                        }
                     }
-                }
-                if (!b.oneOffs.isEmpty()) {
-                    sb.append("\nCard-tagged one-offs:\n");
-                    for (EntryEntity e : b.oneOffs) {
-                        boolean isIncome = "income".equals(e.itemType);
-                        sb.append(String.format(Locale.UK, "  %s — %s£%.2f\n",
-                                e.name, isIncome ? "-" : "", e.effectiveAmount));
+                    if (!b.oneOffs.isEmpty()) {
+                        sb.append("\nCard-tagged one-offs:\n");
+                        for (EntryEntity e : b.oneOffs) {
+                            boolean isIncome = "income".equals(e.itemType);
+                            sb.append(String.format(Locale.UK, "  %s — %s£%.2f\n",
+                                    e.name, isIncome ? "-" : "", e.effectiveAmount));
+                        }
                     }
                 }
                 sb.append(String.format(Locale.UK, "\nTotal: £%.2f", b.total));
@@ -364,14 +371,59 @@ public class ItemsFragment extends Fragment {
                 content.setPadding(pad, pad, pad, pad);
                 content.setText(sb.toString());
 
-                new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                         .setTitle(item.name + " — how this was calculated")
                         .setView(content)
-                        .setPositiveButton("Close", null)
-                        .show();
+                        .setPositiveButton("Close", null);
+                if (b.entryId != null) {
+                    builder.setNeutralButton("Edit this month", (d, w) ->
+                            showEditCardPaymentDialog(item, b.entryId, b.total));
+                }
+                builder.show();
             }
             @Override public void onError(String error) { showError(error); }
         });
+    }
+
+    // Directly overrides this card's payment for one specific month with a
+    // what-if guess -- sticks until a real checkpoint for the period is
+    // recorded, at which point the checkpoint always wins (see backend
+    // recalculateCardEntry).
+    private void showEditCardPaymentDialog(RecurringItemEntity item, long entryId, double currentTotal) {
+        EntryEntity target = null;
+        for (EntryEntity e : currentEntries) {
+            if (e.id == entryId) { target = e; break; }
+        }
+        if (target == null) {
+            showError("Couldn't find this month's entry, try again in a moment");
+            return;
+        }
+        final EntryEntity entry = target;
+
+        EditText inputAmount = new EditText(requireContext());
+        inputAmount.setInputType(android.text.InputType.TYPE_CLASS_NUMBER | android.text.InputType.TYPE_NUMBER_FLAG_DECIMAL);
+        inputAmount.setText(String.format(Locale.UK, "%.2f", currentTotal));
+        int pad = (int) (16 * getResources().getDisplayMetrics().density);
+        inputAmount.setPadding(pad, pad, pad, pad);
+
+        new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setTitle(item.name + " — what-if amount")
+                .setMessage("Sets this month's payment directly. It'll stick until you record a real checkpoint for this period.")
+                .setView(inputAmount)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (d, w) -> {
+                    Double newAmount = parseDoubleOrNull(inputAmount.getText().toString());
+                    if (newAmount == null) {
+                        showError("Enter an amount");
+                        return;
+                    }
+                    entry.plannedAmount = newAmount;
+                    repo.updateEntry(entry, () -> {
+                        loadEntries();
+                        loadBalance();
+                    }, this::showError);
+                })
+                .show();
     }
 
     private void showEditDialog(@Nullable RecurringItemEntity existing) {

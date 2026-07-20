@@ -1,5 +1,6 @@
 package com.quanglewangle.peter.cashflow.api;
 
+import com.quanglewangle.peter.cashflow.BuildConfig;
 import com.quanglewangle.peter.cashflow.data.BalanceCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardCheckpoint;
 import com.quanglewangle.peter.cashflow.data.CardPurchase;
@@ -45,8 +46,10 @@ public class ApiService {
         void onError(String error);
     }
 
-    /** Optional -- set if the server is deployed with CASHFLOW_WRITE_TOKEN configured. */
-    private String writeToken;
+    /** Optional -- set if the server is deployed with CASHFLOW_WRITE_TOKEN configured.
+     *  Comes from local.properties (cashflow.writeToken=...), which is gitignored --
+     *  see app/build.gradle. Empty string if not set locally. */
+    private String writeToken = BuildConfig.CASHFLOW_WRITE_TOKEN;
 
     public void setWriteToken(String token) {
         this.writeToken = token;
@@ -245,6 +248,8 @@ public class ApiService {
                     for (int i = 0; i < oneOffs.length(); i++) b.oneOffs.add(parseEntry(oneOffs.optJSONObject(i)));
                 }
                 if (!o.isNull("unpaid_prior_bill")) b.unpaidPriorBill = parseEntry(o.optJSONObject("unpaid_prior_bill"));
+                b.entryId = o.isNull("entry_id") ? null : o.optLong("entry_id");
+                b.manuallySet = o.optBoolean("manually_set", false);
                 b.total = o.optDouble("total", 0);
                 callback.onSuccess(b);
             }
