@@ -506,6 +506,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         }
 
         ItemViewHolder ivh = (ItemViewHolder) holder;
+        ivh.itemView.setAlpha(1f); // reset -- recycled views may carry a dimmed alpha from a paid row
         int idx = sortedContentRows.indexOf(row);
         double bal = (idx >= 0 && idx < runningBalances.length) ? runningBalances[idx] : Double.NaN;
 
@@ -547,7 +548,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         boolean paidByCard = false;
         if (row instanceof RecurringItemEntity) {
             RecurringItemEntity item = (RecurringItemEntity) row;
-            ivh.name.setText(item.name + (item.active ? "" : " (inactive)"));
+            boolean isPaid = "incurred".equals(entryStatuses.get(item.id));
+            ivh.name.setText(item.name + (item.active ? "" : " (inactive)") + (isPaid ? " ✓" : ""));
+            ivh.itemView.setAlpha(isPaid ? 0.35f : 1f);
             ivh.dueDay.setText(effectiveDayLabel(item));
             String subtitle = "annual".equals(item.frequency)
                     ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual")
@@ -578,8 +581,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                     : null);
         } else if (row instanceof EntryEntity) {
             EntryEntity entry = (EntryEntity) row;
-            String status = "incurred".equals(entry.status) ? " ✓" : "";
-            ivh.name.setText(entry.name + status);
+            boolean isPaid = "incurred".equals(entry.status);
+            ivh.name.setText(entry.name + (isPaid ? " ✓" : ""));
+            ivh.itemView.setAlpha(isPaid ? 0.35f : 1f);
             ivh.dueDay.setText(entry.dueDay != null ? Util.ordinal(entry.dueDay) : "—");
             ivh.subtitle.setText(entry.decayPerWeek != null
                     ? String.format(Locale.UK, "one-off — was £%.2f, −£%.2f/wk", entry.plannedAmount, entry.decayPerWeek)
