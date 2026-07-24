@@ -359,8 +359,15 @@ public class ItemsFragment extends Fragment {
                         sb.append("\nCard-tagged one-offs:\n");
                         for (EntryEntity e : b.oneOffs) {
                             boolean isIncome = "income".equals(e.itemType);
-                            sb.append(String.format(Locale.UK, "  %s — %s£%.2f\n",
-                                    e.name, isIncome ? "-" : "", e.effectiveAmount));
+                            if (e.decayPerWeek != null) {
+                                String since = e.decayStartDate != null && e.decayStartDate.length() >= 10
+                                        ? e.decayStartDate.substring(0, 10) : "?";
+                                sb.append(String.format(Locale.UK, "  %s — %s£%.2f (was £%.2f since %s, −£%.2f/wk)\n",
+                                        e.name, isIncome ? "-" : "", e.effectiveAmount, e.plannedAmount, since, e.decayPerWeek));
+                            } else {
+                                sb.append(String.format(Locale.UK, "  %s — %s£%.2f\n",
+                                        e.name, isIncome ? "-" : "", e.effectiveAmount));
+                            }
                         }
                     }
                 }
