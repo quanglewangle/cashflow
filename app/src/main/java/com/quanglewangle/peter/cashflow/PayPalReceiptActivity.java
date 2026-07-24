@@ -26,8 +26,14 @@ import java.util.regex.Pattern;
 public class PayPalReceiptActivity extends AppCompatActivity {
     private static final String TAG = "PayPalReceipt";
 
-    private static final Pattern AMOUNT_PATTERN =
-            Pattern.compile("You paid £([0-9]+(?:\\.[0-9]{2})?)\\s*GBP to (.+)");
+    private static final Pattern MERCHANT_PATTERN =
+            Pattern.compile("You paid\\s+\\S+\\s+[A-Z]{3}\\s+to (.+)");
+    // The "You paid" line can be in a foreign currency (PayPal converts at
+    // checkout) -- the amount actually charged to the card is always quoted
+    // in GBP separately, whether that's the same line (domestic) or a later
+    // "£X GBP" line next to the card details (foreign-currency purchase).
+    private static final Pattern GBP_AMOUNT_PATTERN =
+            Pattern.compile("£([0-9]+(?:\\.[0-9]{2})?)\\s*GBP");
     private static final Pattern LAST_FOUR_PATTERN = Pattern.compile("••(\\d{4})");
     private static final Pattern DATE_PATTERN =
             Pattern.compile("Transaction date\\s+(\\d{1,2}\\s+[A-Za-z]{3}\\s+\\d{4})");
@@ -48,9 +54,16 @@ public class PayPalReceiptActivity extends AppCompatActivity {
             return;
         }
 
-        Matcher amountMatcher = AMOUNT_PATTERN.matcher(text);
-        if (!amountMatcher.find()) {
+        Matcher merchantMatcher = MERCHANT_PATTERN.matcher(text);
+        if (!merchantMatcher.find()) {
             fail("Couldn't find a PayPal payment in this text");
+            return;
+        }
+        String merchant = merchantMatcher.group(1).trim();
+
+        Matcher amountMatcher = GBP_AMOUNT_PATTERN.matcher(text);
+        if (!amountMatcher.find()) {
+            fail("Couldn't find the GBP amount charged to your card");
             return;
         }
         double amount;
@@ -60,7 +73,6 @@ public class PayPalReceiptActivity extends AppCompatActivity {
             fail("Couldn't parse the amount");
             return;
         }
-        String merchant = amountMatcher.group(2).trim();
 
         Matcher lastFourMatcher = LAST_FOUR_PATTERN.matcher(text);
         if (!lastFourMatcher.find()) {
