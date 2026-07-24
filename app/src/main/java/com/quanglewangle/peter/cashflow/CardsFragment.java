@@ -79,12 +79,14 @@ public class CardsFragment extends Fragment {
         EditText inputStatementDay = formView.findViewById(R.id.inputStatementDay);
         EditText inputDueDay = formView.findViewById(R.id.inputDueDay);
         EditText inputDueMonthOffset = formView.findViewById(R.id.inputDueMonthOffset);
+        android.widget.CheckBox checkCarriesBalance = formView.findViewById(R.id.checkCarriesBalance);
 
         if (existing != null) {
             inputName.setText(existing.name);
             inputStatementDay.setText(String.valueOf(existing.statementDay));
             inputDueDay.setText(String.valueOf(existing.paymentDueDay));
             inputDueMonthOffset.setText(String.valueOf(existing.paymentDueMonthOffset));
+            checkCarriesBalance.setChecked(existing.carriesBalance);
         } else {
             inputDueMonthOffset.setText("1");
         }
@@ -107,6 +109,7 @@ public class CardsFragment extends Fragment {
                     card.statementDay = statementDay;
                     card.paymentDueDay = dueDay;
                     card.paymentDueMonthOffset = dueMonthOffset;
+                    card.carriesBalance = checkCarriesBalance.isChecked();
 
                     if (existing == null) {
                         repo.addCreditCard(card, this::loadAll, this::showError);
@@ -441,6 +444,24 @@ public class CardsFragment extends Fragment {
 
             android.widget.LinearLayout root = new android.widget.LinearLayout(getContext());
             root.setOrientation(android.widget.LinearLayout.VERTICAL);
+
+            if (card.carriesBalance) {
+                android.widget.TextView balanceView = new android.widget.TextView(getContext());
+                balanceView.setPadding(padPx, padPx / 2, padPx, padPx / 2);
+                balanceView.setTypeface(null, android.graphics.Typeface.BOLD);
+                balanceView.setText("Loading current balance…");
+                root.addView(balanceView);
+                repo.getCardCurrentBalance(card.id,
+                        new com.quanglewangle.peter.cashflow.api.ApiService.Callback<com.quanglewangle.peter.cashflow.data.CardCurrentBalance>() {
+                    @Override public void onSuccess(com.quanglewangle.peter.cashflow.data.CardCurrentBalance result) {
+                        if (getContext() == null) return;
+                        balanceView.setText(result.found
+                                ? "Current balance: £" + String.format(Locale.UK, "%.2f", result.balance)
+                                : "No checkpoint recorded yet");
+                    }
+                    @Override public void onError(String error) { /* leave "Loading…" -- non-fatal */ }
+                });
+            }
 
             int maxScrollPx = (int) (240 * getResources().getDisplayMetrics().density);
             android.widget.ScrollView scrollView = new android.widget.ScrollView(getContext());

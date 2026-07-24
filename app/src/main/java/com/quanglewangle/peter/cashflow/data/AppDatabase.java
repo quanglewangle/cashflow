@@ -11,7 +11,8 @@ import androidx.room.RoomDatabase;
         CreditCardEntity.class,
         RecurringItemEntity.class,
         EntryEntity.class
-}, version = 6, exportSchema = false)
+}, version = 7, exportSchema = false)
+// v7: CreditCardEntity gained carriesBalance.
 // v6: CategoryEntity gained parentId.
 // v5: EntryEntity gained decayPerWeek/decayStartDate/effectiveAmount.
 // v4: RecurringItemEntity gained anchorDate. Bump this any time a Room

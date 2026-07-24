@@ -187,6 +187,7 @@ public class ApiService {
         set(body, "statement_day", card.statementDay);
         set(body, "payment_due_day", card.paymentDueDay);
         set(body, "payment_due_month_offset", card.paymentDueMonthOffset);
+        set(body, "carries_balance", card.carriesBalance);
         return body;
     }
 
@@ -197,6 +198,7 @@ public class ApiService {
         c.statementDay = o.optInt("statement_day");
         c.paymentDueDay = o.optInt("payment_due_day");
         c.paymentDueMonthOffset = o.optInt("payment_due_month_offset", 1);
+        c.carriesBalance = o.optBoolean("carries_balance", false);
         return c;
     }
 
@@ -224,6 +226,22 @@ public class ApiService {
         p.recurringPurchaseId = o.isNull("recurring_purchase_id") ? null : o.optLong("recurring_purchase_id");
         p.categoryId = o.isNull("category_id") ? null : o.optLong("category_id");
         return p;
+    }
+
+    public void getCardCurrentBalance(long creditCardId, Callback<com.quanglewangle.peter.cashflow.data.CardCurrentBalance> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "card-current-balance?credit_card_id=" + creditCardId)
+                .build();
+        enqueue(request, new Callback<JSONObject>() {
+            @Override public void onSuccess(JSONObject o) {
+                com.quanglewangle.peter.cashflow.data.CardCurrentBalance b =
+                        new com.quanglewangle.peter.cashflow.data.CardCurrentBalance();
+                b.balance = o.optDouble("balance", 0);
+                b.found = o.optBoolean("found", false);
+                callback.onSuccess(b);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
     }
 
     public void getCardPaymentBreakdown(long creditCardId, int year, int month, Callback<com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown> callback) {

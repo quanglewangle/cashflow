@@ -13,4 +13,7 @@ public class CreditCardEntity {
     public int paymentDueDay;
     /** Calendar months after the statement closes that payment is due (1 for all 3 seeded cards). */
     public int paymentDueMonthOffset = 1;
+    /** True for a fixed installment against a revolving balance (e.g. a promotional
+     *  paydown) instead of paying the statement off in full each cycle. */
+    public boolean carriesBalance;
 }
