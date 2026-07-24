@@ -62,6 +62,10 @@ The list and edit dialog always show the **current, decayed** amount;
 editing prefills the **original** amount (the base you're decaying
 from), so re-saving other fields doesn't reset anything.
 
+For some cards, this buffer is created for you automatically every
+period rather than something you add by hand — see **Auto-generated
+sundries buffer** under Credit cards below.
+
 ### Tagging a one-off entry to a card
 
 The "Card" picker on the add/edit dialog is for something different
@@ -107,6 +111,27 @@ Which calendar month a purchase (or checkpoint) belongs to is worked
 out from the card's own **statement day**, **payment due day**, and
 **month offset** (Cards tab → edit card). A purchase dated on/before
 the statement day stays in that cycle; after it, rolls to the next.
+
+### Auto-generated sundries buffer
+
+Jenny's card and Visacard don't use step 5's flat default at all — their
+recurring item's default is deliberately set to £0, and instead a fresh
+decaying sundries buffer (step 3 above) is created **automatically for
+every period**, so a month you haven't started spending on yet still
+shows a sensible estimate instead of £0. This is the same decaying
+one-off described above, just created for you rather than added by
+hand — it decays, folds into the card's total, and shows up in "How was
+this calculated?" exactly like a manual one would.
+
+It still follows the same cleanup rule: once a fresh checkpoint actually
+covers the period, the auto-generated buffer becomes redundant and the
+checkpoint-add prompt will offer to remove it, same as a manual one.
+
+Which cards use this and at what starting amount/decay rate isn't
+editable from the app yet — it's set directly on the recurring item's
+`sundries_amount`/`sundries_decay_per_week` fields on the backend. Ask
+whoever manages the server if a card needs adding to or removed from
+this list.
 
 ### Card checkpoints
 
