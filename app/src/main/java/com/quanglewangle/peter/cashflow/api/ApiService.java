@@ -533,6 +533,8 @@ public class ApiService {
                     d.minBalance = o.optDouble("min_balance", 0);
                     d.minBalanceDay = o.optInt("min_balance_day");
                     d.carriedForward = o.optDouble("carried_forward", 0);
+                    d.lowDays = o.optInt("low_days", 0);
+                    d.lowOngoing = o.optBoolean("low_ongoing", false);
                     out.add(d);
                 }
                 callback.onSuccess(out);

@@ -71,6 +71,9 @@ public class DangerAdapter extends RecyclerView.Adapter<DangerAdapter.ViewHolder
         vh.minBalanceLabel.setTextColor(minColor);
 
         String dayLabel = d.minBalanceDay > 0 ? "Low on " + Util.ordinal(d.minBalanceDay) : "Low at start";
+        if (d.lowDays > 0) {
+            dayLabel += " · " + d.lowDays + (d.lowOngoing ? "+ days" : (d.lowDays == 1 ? " day" : " days"));
+        }
         vh.detailLabel.setText(dayLabel);
         vh.endBalanceLabel.setText(String.format(Locale.UK, "End: £%.0f", displayCarried));
 

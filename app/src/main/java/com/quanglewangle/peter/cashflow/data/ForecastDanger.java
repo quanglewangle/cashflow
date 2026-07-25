@@ -8,6 +8,10 @@ public class ForecastDanger {
     public double minBalance;
     public int minBalanceDay;
     public double carriedForward;
+    /** Consecutive days below £0 for the dip containing minBalanceDay (0 if minBalance >= 0). */
+    public int lowDays;
+    /** True if that dip hadn't recovered within the server's lookahead window -- lowDays is a lower bound. */
+    public boolean lowOngoing;
 
     // Client-computed simulation fields (zero = no action this month)
     public double simMin;
