@@ -59,23 +59,27 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         CheckpointMarker(int day, double balance) { this.day = day; this.balance = balance; }
     }
 
+    /** One real occurrence of a recurring item for the displayed month -- a
+     *  four_weekly item can have more than one (28-day drift against the
+     *  calendar), each with its own day/amount/status, so a distinct instance
+     *  is needed per occurrence rather than one shared row per template. */
+    private static class RecurringOccurrence {
+        final RecurringItemEntity item;
+        final EntryEntity entry;
+        RecurringOccurrence(RecurringItemEntity item, EntryEntity entry) { this.item = item; this.entry = entry; }
+    }
+
     private List<RecurringItemEntity> items = new ArrayList<>();
     private List<EntryEntity> oneOffEntries = new ArrayList<>();
     private List<CardPurchase> cardPurchases = new ArrayList<>();
-    // Maps recurringItemId → entry plannedAmount for the displayed month.
-    // When present, overrides the recurring item's defaultAmount in the running balance.
-    private java.util.Map<Long, Double> entryAmounts = new java.util.HashMap<>();
-    // Maps recurringItemId → entry due_day for the displayed month.
-    // Entries can have a different due_day than the template (e.g. after a template edit),
-    // so we use the entry's day for positioning to match what the server uses.
-    private java.util.Map<Long, Integer> entryDueDays = new java.util.HashMap<>();
-    // Maps recurringItemId → entry status ("planned" / "incurred") for the displayed month.
-    private java.util.Map<Long, String> entryStatuses = new java.util.HashMap<>();
-    // Maps recurringItemId → entry item_type ("income" / "expense") for the displayed month.
-    // The template's item_type can be edited after the entry was generated, so this must be
-    // used for balance sign instead -- it's what the server actually summed when it computed
-    // periodNet/carried-forward for this month.
-    private java.util.Map<Long, String> entryItemTypes = new java.util.HashMap<>();
+    // Maps recurringItemId → every real entry generated for it this displayed
+    // month (usually one, but a four_weekly item can have two -- see
+    // RecurringOccurrence). Entries can differ from the template (a different
+    // due_day after a template edit, or item_type changed since generation),
+    // so occurrence rows always read from the entry itself, never the template,
+    // for anything that affects balance/positioning -- matches what the server
+    // actually summed when it computed periodNet/carried-forward.
+    private java.util.Map<Long, List<EntryEntity>> entriesByItemId = new java.util.HashMap<>();
 
     // sortedContentRows = RecurringItemEntity | EntryEntity, sorted by day
     private List<Object> sortedContentRows = new ArrayList<>();
@@ -162,17 +166,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     /** Pass all entries for the displayed month so recurring items use their
      *  actual planned amount (reflecting real purchases) instead of the default. */
     public void setEntryAmounts(List<EntryEntity> allEntries) {
-        entryAmounts = new java.util.HashMap<>();
-        entryDueDays = new java.util.HashMap<>();
-        entryStatuses = new java.util.HashMap<>();
-        entryItemTypes = new java.util.HashMap<>();
+        entriesByItemId = new java.util.HashMap<>();
         for (EntryEntity e : allEntries) {
             if (e.recurringItemId != null) {
-                double amount = e.actualAmount != null ? e.actualAmount : e.plannedAmount;
-                entryAmounts.put(e.recurringItemId, amount);
-                if (e.dueDay != null) entryDueDays.put(e.recurringItemId, e.dueDay);
-                if (e.status != null) entryStatuses.put(e.recurringItemId, e.status);
-                if (e.itemType != null) entryItemTypes.put(e.recurringItemId, e.itemType);
+                entriesByItemId.computeIfAbsent(e.recurringItemId, k -> new ArrayList<>()).add(e);
             }
         }
         rebuild();
@@ -201,6 +198,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private void buildSortedContentRows() {
         sortedContentRows = new ArrayList<>();
         for (RecurringItemEntity item : items) {
+            List<EntryEntity> occurrences = entriesByItemId.get(item.id);
+            boolean hasRealEntry = occurrences != null && !occurrences.isEmpty();
             // An inactive item with no real entry for this period was never
             // actually generated server-side either (GeneratePeriodEntries only
             // materializes active items) -- counting it here would be a phantom
@@ -208,9 +207,15 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             // (e.g. it was active when generated, deactivated since), keep it --
             // the server's own sum doesn't care about the template's current
             // active flag for entries that already exist.
-            boolean hasRealEntry = entryDueDays.containsKey(item.id) || entryAmounts.containsKey(item.id);
             if (!item.active && !hasRealEntry) continue;
-            if (effectiveDay(item) > 0) sortedContentRows.add(item);
+            if (hasRealEntry) {
+                // One row per real occurrence (usually one, but a four_weekly
+                // item can have two this month) -- each reads its own
+                // day/amount/status straight from its entry, not the template.
+                for (EntryEntity e : occurrences) sortedContentRows.add(new RecurringOccurrence(item, e));
+            } else if (effectiveDay(item) > 0) {
+                sortedContentRows.add(item);
+            }
         }
         for (EntryEntity e : oneOffEntries) {
             sortedContentRows.add(e);
@@ -223,6 +228,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     private int dayOf(Object row) {
         if (row instanceof RecurringItemEntity) return effectiveDay((RecurringItemEntity) row);
+        if (row instanceof RecurringOccurrence) {
+            Integer d = ((RecurringOccurrence) row).entry.dueDay;
+            return d != null ? d : 32;
+        }
         if (row instanceof EntryEntity) {
             EntryEntity e = (EntryEntity) row;
             return e.dueDay != null ? e.dueDay : 32; // after all dated items
@@ -356,9 +365,11 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private double effectiveAmount(Object row) {
         if (row instanceof RecurringItemEntity) {
             RecurringItemEntity item = (RecurringItemEntity) row;
-            Double entryAmount = entryAmounts.get(item.id);
-            if (entryAmount != null) return entryAmount;
             return item.defaultAmount != null ? item.defaultAmount : Double.NaN;
+        }
+        if (row instanceof RecurringOccurrence) {
+            EntryEntity e = ((RecurringOccurrence) row).entry;
+            return e.actualAmount != null ? e.actualAmount : e.plannedAmount;
         }
         if (row instanceof EntryEntity) {
             EntryEntity e = (EntryEntity) row;
@@ -374,23 +385,16 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private boolean isIncome(Object row) {
-        if (row instanceof RecurringItemEntity) return "income".equals(effectiveItemType((RecurringItemEntity) row));
+        if (row instanceof RecurringItemEntity) return "income".equals(((RecurringItemEntity) row).itemType);
+        if (row instanceof RecurringOccurrence) return "income".equals(((RecurringOccurrence) row).entry.itemType);
         if (row instanceof EntryEntity) return "income".equals(((EntryEntity) row).itemType);
         return false;
     }
 
-    /** The displayed month's entry's item_type if one exists, else the template's own --
-     *  the template can be edited (income/expense) after the entry was already generated. */
-    private String effectiveItemType(RecurringItemEntity item) {
-        String entryType = entryItemTypes.get(item.id);
-        return entryType != null ? entryType : item.itemType;
-    }
-
+    // Only used for a template with no real entry yet this period -- once a real
+    // entry (or entries, for a four_weekly item) exists, RecurringOccurrence
+    // reads its own due_day directly instead of going through this projection.
     private int effectiveDay(RecurringItemEntity item) {
-        // Prefer the entry's actual due_day for the displayed month — it reflects any
-        // due-date changes made after entry generation, and matches what the server uses.
-        Integer entryDay = entryDueDays.get(item.id);
-        if (entryDay != null) return entryDay;
         return effectiveDayForMonth(item, displayYear, displayMonth);
     }
 
@@ -546,25 +550,30 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         ivh.subtitle.setTextColor(ctx.getColor(R.color.planned));
 
         boolean paidByCard = false;
-        if (row instanceof RecurringItemEntity) {
-            RecurringItemEntity item = (RecurringItemEntity) row;
-            boolean isPaid = "incurred".equals(entryStatuses.get(item.id));
+        if (row instanceof RecurringItemEntity || row instanceof RecurringOccurrence) {
+            RecurringItemEntity item = row instanceof RecurringOccurrence
+                    ? ((RecurringOccurrence) row).item : (RecurringItemEntity) row;
+            EntryEntity occurrenceEntry = row instanceof RecurringOccurrence
+                    ? ((RecurringOccurrence) row).entry : null;
+            boolean isPaid = occurrenceEntry != null && "incurred".equals(occurrenceEntry.status);
             ivh.name.setText(item.name + (item.active ? "" : " (inactive)") + (isPaid ? " ✓" : ""));
             ivh.itemView.setAlpha(isPaid ? 0.35f : 1f);
-            ivh.dueDay.setText(effectiveDayLabel(item));
+            ivh.dueDay.setText(occurrenceEntry != null
+                    ? (occurrenceEntry.dueDay != null ? Util.ordinal(occurrenceEntry.dueDay) : "—")
+                    : effectiveDayLabel(item));
             String subtitle = "annual".equals(item.frequency)
                     ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual")
                     : "last_working_day".equals(item.frequency) ? "last working day"
                     : "three_monthly".equals(item.frequency) ? "3 monthly"
                     : "";
             ivh.subtitle.setText(subtitle);
-            double dispAmount = effectiveAmount(item);
+            double dispAmount = effectiveAmount(row);
             ivh.amount.setText(!Double.isNaN(dispAmount)
                     ? String.format(Locale.UK, "£%.2f", dispAmount) : "—");
             paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
-            ivh.amount.setTextColor(Util.colorForAmount(ctx, effectiveItemType(item), paidByCard));
-            boolean hasCard = row instanceof RecurringItemEntity
-                    && ((RecurringItemEntity) row).creditCardId != null;
+            String itemType = occurrenceEntry != null ? occurrenceEntry.itemType : item.itemType;
+            ivh.amount.setTextColor(Util.colorForAmount(ctx, itemType, paidByCard));
+            boolean hasCard = item.creditCardId != null;
             if (hasCard) {
                 ivh.cardIcon.setVisibility(View.VISIBLE);
                 android.graphics.drawable.Drawable d =
@@ -671,8 +680,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private boolean isIncurred(Object row) {
-        if (row instanceof RecurringItemEntity)
-            return "incurred".equals(entryStatuses.get(((RecurringItemEntity) row).id));
+        if (row instanceof RecurringOccurrence)
+            return "incurred".equals(((RecurringOccurrence) row).entry.status);
         if (row instanceof EntryEntity)
             return "incurred".equals(((EntryEntity) row).status);
         return false;
