@@ -365,10 +365,18 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     private double effectiveAmount(Object row) {
         if (row instanceof RecurringItemEntity) {
             RecurringItemEntity item = (RecurringItemEntity) row;
+            // Charged to a card (and not that card's own repayment item, e.g.
+            // "Dog pills" tagged to Jenny's card) -- folded into that card's own
+            // bill server-side (see GetCardTaggedExtras) and excluded from the
+            // server's own forecast totals, same reasoning as the one-off/
+            // RecurringOccurrence cases below.
+            if (Util.isChargedToCard(item.creditCardId, item.name, creditCards)) return Double.NaN;
             return item.defaultAmount != null ? item.defaultAmount : Double.NaN;
         }
         if (row instanceof RecurringOccurrence) {
+            RecurringItemEntity item = ((RecurringOccurrence) row).item;
             EntryEntity e = ((RecurringOccurrence) row).entry;
+            if (Util.isChargedToCard(item.creditCardId, item.name, creditCards)) return Double.NaN;
             return e.actualAmount != null ? e.actualAmount : e.plannedAmount;
         }
         if (row instanceof EntryEntity) {
