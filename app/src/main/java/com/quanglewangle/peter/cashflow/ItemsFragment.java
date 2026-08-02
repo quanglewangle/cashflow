@@ -324,63 +324,73 @@ public class ItemsFragment extends Fragment {
                 new com.quanglewangle.peter.cashflow.api.ApiService.Callback<com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown>() {
             @Override public void onSuccess(com.quanglewangle.peter.cashflow.data.CardPaymentBreakdown b) {
                 if (getContext() == null) return;
-                StringBuilder sb = new StringBuilder();
+                int pad = (int) (16 * getResources().getDisplayMetrics().density);
+                android.widget.LinearLayout container = new android.widget.LinearLayout(requireContext());
+                container.setOrientation(android.widget.LinearLayout.VERTICAL);
+                container.setPadding(pad, pad, pad, pad);
+
                 if (b.manuallySet) {
-                    sb.append("You've manually set this month's payment as a what-if guess.\n" +
-                            "It'll be used as-is until you record a real checkpoint for this period, which always takes over.\n");
+                    addNote(container, "You've manually set this month's payment as a what-if guess.\n" +
+                            "It'll be used as-is until you record a real checkpoint for this period, which always takes over.");
                 } else if (b.checkpoint != null) {
-                    sb.append(String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f",
+                    addNote(container, String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f",
                             Util.ordinal(b.checkpoint.periodDay), b.checkpoint.periodMonth, b.checkpoint.balance));
                     if (!b.coveredByCheckpoint.isEmpty()) {
                         double coveredTotal = 0;
-                        for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.coveredByCheckpoint) coveredTotal += p.amount;
-                        sb.append(String.format(Locale.UK, "\n  (already covers %d purchase%s totalling £%.2f)",
+                        for (CardPurchase p : b.coveredByCheckpoint) coveredTotal += p.amount;
+                        addNote(container, String.format(Locale.UK, "  (already covers %d purchase%s totalling £%.2f)",
                                 b.coveredByCheckpoint.size(), b.coveredByCheckpoint.size() == 1 ? "" : "s", coveredTotal));
                     }
                     if (b.unpaidPriorBill != null) {
-                        sb.append(String.format(Locale.UK, "\n  (minus %s, still unpaid from last period — £%.2f)",
+                        addNote(container, String.format(Locale.UK, "  (minus %s, still unpaid from last period — £%.2f)",
                                 b.unpaidPriorBill.name, b.unpaidPriorBill.effectiveAmount));
                     }
-                    sb.append("\n\nAdded since checkpoint:\n");
+                    addNote(container, "\nAdded since checkpoint:");
                 } else {
-                    sb.append("No checkpoint anchors this period — summed from all logged purchases:\n");
+                    addNote(container, "No checkpoint anchors this period — summed from all logged purchases:");
                 }
+
                 if (!b.manuallySet) {
                     if (b.purchases.isEmpty()) {
-                        sb.append(b.checkpoint != null ? "  (none)\n" : "No purchases logged.\n");
+                        addNote(container, b.checkpoint != null ? "  (none)" : "No purchases logged.");
                     } else {
-                        for (com.quanglewangle.peter.cashflow.data.CardPurchase p : b.purchases) {
+                        double purchasesTotal = 0;
+                        for (CardPurchase p : b.purchases) {
                             String date = p.purchaseDate != null && p.purchaseDate.length() >= 10
                                     ? p.purchaseDate.substring(0, 10) : "";
-                            sb.append(String.format(Locale.UK, "%s  %s — £%.2f\n", date, p.description, p.amount));
+                            addRow(container, date + "  " + p.description, String.format(Locale.UK, "£%.2f", p.amount), false);
+                            purchasesTotal += p.amount;
+                        }
+                        if (b.purchases.size() > 1) {
+                            addRow(container, "Subtotal", String.format(Locale.UK, "£%.2f", purchasesTotal), true);
                         }
                     }
                     if (!b.oneOffs.isEmpty()) {
-                        sb.append("\nCard-tagged one-offs:\n");
+                        addNote(container, "\nCard-tagged one-offs:");
+                        double oneOffsTotal = 0;
                         for (EntryEntity e : b.oneOffs) {
                             boolean isIncome = "income".equals(e.itemType);
+                            String desc = e.name;
                             if (e.decayPerWeek != null) {
                                 String since = e.decayStartDate != null && e.decayStartDate.length() >= 10
                                         ? e.decayStartDate.substring(0, 10) : "?";
-                                sb.append(String.format(Locale.UK, "  %s — %s£%.2f (was £%.2f since %s, −£%.2f/wk)\n",
-                                        e.name, isIncome ? "-" : "", e.effectiveAmount, e.plannedAmount, since, e.decayPerWeek));
-                            } else {
-                                sb.append(String.format(Locale.UK, "  %s — %s£%.2f\n",
-                                        e.name, isIncome ? "-" : "", e.effectiveAmount));
+                                desc += String.format(Locale.UK, "\n(was £%.2f since %s, −£%.2f/wk)",
+                                        e.plannedAmount, since, e.decayPerWeek);
                             }
+                            addRow(container, desc, String.format(Locale.UK, "%s£%.2f", isIncome ? "-" : "", e.effectiveAmount), false);
+                            oneOffsTotal += isIncome ? -e.effectiveAmount : e.effectiveAmount;
+                        }
+                        if (b.oneOffs.size() > 1) {
+                            addRow(container, "Subtotal", String.format(Locale.UK, "%s£%.2f",
+                                    oneOffsTotal < 0 ? "-" : "", Math.abs(oneOffsTotal)), true);
                         }
                     }
                 }
-                sb.append(String.format(Locale.UK, "\nTotal: £%.2f", b.total));
-
-                TextView content = new TextView(requireContext());
-                int pad = (int) (16 * getResources().getDisplayMetrics().density);
-                content.setPadding(pad, pad, pad, pad);
-                content.setText(sb.toString());
+                addRow(container, "Total", String.format(Locale.UK, "£%.2f", b.total), true);
 
                 androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                         .setTitle(item.name + " — how this was calculated")
-                        .setView(content)
+                        .setView(container)
                         .setPositiveButton("Close", null);
                 if (b.entryId != null) {
                     builder.setNeutralButton("Edit this month", (d, w) ->
@@ -390,6 +400,41 @@ public class ItemsFragment extends Fragment {
             }
             @Override public void onError(String error) { showError(error); }
         });
+    }
+
+    /** A full-width, non-tabular line of text in a card breakdown dialog (headers/notes). */
+    private void addNote(android.widget.LinearLayout container, String text) {
+        TextView tv = new TextView(requireContext());
+        tv.setText(text);
+        container.addView(tv);
+    }
+
+    /** A two-column row in a card breakdown dialog: description left-aligned, amount right-aligned. */
+    private void addRow(android.widget.LinearLayout container, String desc, String amount, boolean bold) {
+        android.widget.LinearLayout row = new android.widget.LinearLayout(requireContext());
+        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+
+        TextView descView = new TextView(requireContext());
+        descView.setText(desc);
+        descView.setLayoutParams(new android.widget.LinearLayout.LayoutParams(
+                0, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, 1f));
+
+        TextView amountView = new TextView(requireContext());
+        amountView.setText(amount);
+        amountView.setGravity(android.view.Gravity.END);
+        android.widget.LinearLayout.LayoutParams amountLp = new android.widget.LinearLayout.LayoutParams(
+                android.widget.LinearLayout.LayoutParams.WRAP_CONTENT, android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+        amountLp.leftMargin = (int) (12 * getResources().getDisplayMetrics().density);
+        amountView.setLayoutParams(amountLp);
+
+        if (bold) {
+            descView.setTypeface(descView.getTypeface(), android.graphics.Typeface.BOLD);
+            amountView.setTypeface(amountView.getTypeface(), android.graphics.Typeface.BOLD);
+        }
+
+        row.addView(descView);
+        row.addView(amountView);
+        container.addView(row);
     }
 
     // Directly overrides this card's payment for one specific month with a
