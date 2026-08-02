@@ -6,7 +6,10 @@ import android.content.Intent;
 
 import androidx.core.app.NotificationManagerCompat;
 
-/** Handles the "Ignore" quick action on a detected-purchase notification. */
+/** Handles the "Ignore" quick action on a detected-transaction notification --
+ *  card purchases (GooglePayListenerService) and bank payments
+ *  (BankPaymentListenerService) alike, since dismissing one is the same
+ *  "just cancel this notification id" regardless of which detected it. */
 public class CardPurchaseActionReceiver extends BroadcastReceiver {
     static final String ACTION_DISMISS = "com.quanglewangle.peter.cashflow.ACTION_DISMISS_CARD_PURCHASE";
     static final String EXTRA_NOTIF_ID = "notif_id";
