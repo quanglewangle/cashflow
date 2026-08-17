@@ -117,6 +117,11 @@ public class ConfirmBankPaymentActivity extends AppCompatActivity {
                 .setPositiveButton(isIncome ? "Mark received" : "Mark paid", (d, w) -> {
                     match.actualAmount = amount;
                     match.status = "incurred";
+                    // The notification's own date is the real payment date, which can be
+                    // a few days either side of match.dueDay -- see findMatch's slack.
+                    // Passing it explicitly stops a checkpoint taken in between from
+                    // double-counting this entry (server double-counting fix, issue #25).
+                    match.incurredDate = dateIso + "T00:00:00Z";
                     repo.updateEntry(match,
                             () -> {
                                 Toast.makeText(this, "Marked " + match.name + " as " +
@@ -185,6 +190,7 @@ public class ConfirmBankPaymentActivity extends AppCompatActivity {
                     entry.plannedAmount = amt;
                     entry.actualAmount = amt;
                     entry.status = "incurred";
+                    entry.incurredDate = dateIso + "T00:00:00Z";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     entry.creditCardId = null;
                     repo.addEntry(entry,

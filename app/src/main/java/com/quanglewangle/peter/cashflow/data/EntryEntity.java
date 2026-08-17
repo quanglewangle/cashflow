@@ -18,6 +18,11 @@ public class EntryEntity {
     public double plannedAmount;
     public Double actualAmount;    // set once incurred
     public String status;          // planned | incurred
+    // When this entry actually became incurred (paid/received) -- may differ
+    // from dueDay if paid early/late. Lets the server tell whether a
+    // checkpoint taken between the two already reflects it, avoiding
+    // double-counting. "2026-07-10T00:00:00Z" format, same as decayStartDate.
+    public String incurredDate;
     public Long creditCardId;
     public Integer dueDay;
     public Double decayPerWeek;      // optional: shrinks effectiveAmount this much per elapsed week

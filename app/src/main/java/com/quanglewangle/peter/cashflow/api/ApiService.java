@@ -455,6 +455,7 @@ public class ApiService {
         set(body, "due_day", e.dueDay);
         set(body, "decay_per_week", e.decayPerWeek);
         set(body, "decay_start_date", e.decayStartDate);
+        set(body, "incurred_date", e.incurredDate);
         return body;
     }
 
@@ -474,6 +475,7 @@ public class ApiService {
         e.dueDay = o.isNull("due_day") ? null : o.optInt("due_day");
         e.decayPerWeek = o.isNull("decay_per_week") ? null : o.optDouble("decay_per_week");
         e.decayStartDate = o.isNull("decay_start_date") ? null : o.optString("decay_start_date");
+        e.incurredDate = o.isNull("incurred_date") ? null : o.optString("incurred_date");
         e.effectiveAmount = o.optDouble("effective_amount", e.plannedAmount);
         return e;
     }

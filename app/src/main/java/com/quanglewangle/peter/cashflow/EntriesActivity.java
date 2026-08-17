@@ -118,6 +118,17 @@ public class EntriesActivity extends AppCompatActivity {
         double prefill = entry.actualAmount != null ? entry.actualAmount : entry.plannedAmount;
         inputActual.setText(String.valueOf(prefill));
 
+        EditText inputDay = formView.findViewById(R.id.inputActualDay);
+        int dayPrefill = incurredDayOrNull(entry.incurredDate);
+        if (dayPrefill == 0) {
+            java.util.Calendar now = java.util.Calendar.getInstance();
+            dayPrefill = (now.get(java.util.Calendar.YEAR) == entry.periodYear
+                    && now.get(java.util.Calendar.MONTH) + 1 == entry.periodMonth)
+                    ? now.get(java.util.Calendar.DAY_OF_MONTH)
+                    : (entry.dueDay != null ? entry.dueDay : 1);
+        }
+        inputDay.setText(String.valueOf(dayPrefill));
+
         boolean isIncome = "income".equals(entry.itemType);
         new AlertDialog.Builder(this)
                 .setTitle(entry.name)
@@ -125,22 +136,36 @@ public class EntriesActivity extends AppCompatActivity {
                 .setNegativeButton("Cancel", null)
                 .setPositiveButton(isIncome ? "Mark received" : "Mark paid", (dialog, which) -> {
                     Double amount = parseDoubleOrNull(inputActual.getText().toString());
-                    if (amount == null) {
-                        Toast.makeText(this, "Enter a valid amount", Toast.LENGTH_SHORT).show();
+                    Integer day = parseIntOrNull(inputDay.getText().toString());
+                    if (amount == null || day == null || day < 1 || day > 31) {
+                        Toast.makeText(this, "Enter a valid amount and day", Toast.LENGTH_SHORT).show();
                         return;
                     }
                     entry.actualAmount = amount;
                     entry.status = "incurred";
+                    // The day this was actually paid/received, which can be a few days
+                    // either side of dueDay -- lets the server avoid double-counting it
+                    // against a checkpoint taken in between (issue #25).
+                    entry.incurredDate = String.format(Locale.UK, "%04d-%02d-%02dT00:00:00Z",
+                            entry.periodYear, entry.periodMonth, day);
                     repo.updateEntry(entry, this::loadEntries, this::showError);
                 })
                 .setNeutralButton("Revert to planned", (dialog, which) -> {
                     entry.actualAmount = null;
                     entry.status = "planned";
+                    entry.incurredDate = null;
                     repo.updateEntry(entry, this::loadEntries, this::showError);
                 })
                 .show();
 
         // Separate confirm-delete dialog accessible from a long-press on the row
+    }
+
+    /** Extracts the day-of-month from a "yyyy-MM-ddT..." incurredDate string, or 0 if unset/unparseable. */
+    private int incurredDayOrNull(String incurredDate) {
+        if (incurredDate == null || incurredDate.length() < 10) return 0;
+        Integer day = parseIntOrNull(incurredDate.substring(8, 10));
+        return day != null ? day : 0;
     }
 
     private void showDeleteConfirmDialog(EntryEntity entry) {
