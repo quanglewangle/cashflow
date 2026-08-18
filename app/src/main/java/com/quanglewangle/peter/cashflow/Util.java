@@ -225,6 +225,16 @@ class Util {
         }
     }
 
+    /** Extracts the day-of-month from a "yyyy-MM-ddT..." date string, or 0 if unset/unparseable. */
+    static int dayOfMonthOrZero(String isoDate) {
+        if (isoDate == null || isoDate.length() < 10) return 0;
+        try {
+            return Integer.parseInt(isoDate.substring(8, 10));
+        } catch (NumberFormatException e) {
+            return 0;
+        }
+    }
+
     /** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11-13 -> "th", etc. */
     static String ordinal(int n) {
         if (n % 100 >= 11 && n % 100 <= 13) return n + "th";

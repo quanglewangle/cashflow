@@ -43,6 +43,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
     private double broughtForward = Double.NaN;
     private int checkpointDay = 0;
     private double checkpointBalance = Double.NaN;
+    private List<com.quanglewangle.peter.cashflow.data.CreditCardEntity> creditCards = new ArrayList<>();
     private final OnMarkIncurred onMarkIncurred;
     private final OnDelete onDelete;
     private int displayYear;
@@ -72,6 +73,12 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         notifyDataSetChanged();
     }
 
+    public void setCreditCards(List<com.quanglewangle.peter.cashflow.data.CreditCardEntity> creditCards) {
+        this.creditCards = creditCards;
+        recomputeRunningBalances();
+        notifyDataSetChanged();
+    }
+
     public void setItems(List<EntryEntity> items) {
         this.items = new ArrayList<>(items);
         this.items.sort(Comparator.comparingInt(e -> e.dueDay != null ? e.dueDay : Integer.MAX_VALUE));
@@ -90,17 +97,24 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         for (int i = 0; i < items.size(); i++) {
             EntryEntity e = items.get(i);
             int day = e.dueDay != null ? e.dueDay : Integer.MAX_VALUE;
-            // Mirrors the server's periodNetFrom: an entry due exactly on the
-            // checkpoint day but already incurred is baked into the checkpoint
-            // balance already, so it must not be added again here.
             boolean isPaid = "incurred".equals(e.status);
-            boolean show = !hasCheckpoint || day > checkpointDay || (day == checkpointDay && !isPaid);
-            // A one-off tagged with a card is folded into that card's own
+            // Mirrors the server's periodNetFrom: once incurred, an entry may
+            // have actually settled on a different day than dueDay (paid early/
+            // late) -- compare the checkpoint against that real day so an early
+            // payment already reflected in the checkpoint's bank balance isn't
+            // added again, and a late one still is.
+            int settleDay = isPaid ? Util.dayOfMonthOrZero(e.incurredDate) : 0;
+            if (isPaid && settleDay == 0) settleDay = day; // no incurredDate recorded -- fall back to dueDay
+            boolean show = !hasCheckpoint
+                    || (isPaid ? settleDay > checkpointDay : day >= checkpointDay);
+            // An entry tagged with a card -- whether a one-off purchase or one
+            // generated from a recurring item -- is folded into that card's own
             // repayment entry server-side (see sumPurchasesForPeriod) and
             // excluded from the server's own forecast totals -- counting it
-            // again here would double it. The card's own repayment entry
-            // (recurringItemId set) is unaffected -- it's still a real expense.
-            boolean foldedIntoCard = e.recurringItemId == null && e.creditCardId != null;
+            // again here would double it. The card's own repayment entry is
+            // told apart by name (it's named after the card itself), same
+            // heuristic as RecurringItemAdapter's effectiveAmount().
+            boolean foldedIntoCard = Util.isChargedToCard(e.creditCardId, e.name, creditCards);
             if (show && !Double.isNaN(balance) && !foldedIntoCard) {
                 double amount = e.effectiveAmount;
                 if ("income".equals(e.itemType)) balance += amount;

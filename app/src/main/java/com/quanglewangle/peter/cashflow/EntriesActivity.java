@@ -66,7 +66,10 @@ public class EntriesActivity extends AppCompatActivity {
         swipeRefresh.setOnRefreshListener(this::loadEntries);
 
         repo.getCategories((cats, fromCache) -> categories = cats);
-        repo.getCreditCards((cards, fromCache) -> creditCards = cards);
+        repo.getCreditCards((cards, fromCache) -> {
+            creditCards = cards;
+            adapter.setCreditCards(cards);
+        });
         loadForecast();
         loadEntries();
         loadCheckpoint();
@@ -119,7 +122,7 @@ public class EntriesActivity extends AppCompatActivity {
         inputActual.setText(String.valueOf(prefill));
 
         EditText inputDay = formView.findViewById(R.id.inputActualDay);
-        int dayPrefill = incurredDayOrNull(entry.incurredDate);
+        int dayPrefill = Util.dayOfMonthOrZero(entry.incurredDate);
         if (dayPrefill == 0) {
             java.util.Calendar now = java.util.Calendar.getInstance();
             dayPrefill = (now.get(java.util.Calendar.YEAR) == entry.periodYear
@@ -159,13 +162,6 @@ public class EntriesActivity extends AppCompatActivity {
                 .show();
 
         // Separate confirm-delete dialog accessible from a long-press on the row
-    }
-
-    /** Extracts the day-of-month from a "yyyy-MM-ddT..." incurredDate string, or 0 if unset/unparseable. */
-    private int incurredDayOrNull(String incurredDate) {
-        if (incurredDate == null || incurredDate.length() < 10) return 0;
-        Integer day = parseIntOrNull(incurredDate.substring(8, 10));
-        return day != null ? day : 0;
     }
 
     private void showDeleteConfirmDialog(EntryEntity entry) {
