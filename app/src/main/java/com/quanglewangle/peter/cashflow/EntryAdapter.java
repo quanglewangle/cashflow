@@ -100,13 +100,21 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
             boolean isPaid = "incurred".equals(e.status);
             // Mirrors the server's periodNetFrom: once incurred, an entry may
             // have actually settled on a different day than dueDay (paid early/
-            // late) -- compare the checkpoint against that real day so an early
-            // payment already reflected in the checkpoint's bank balance isn't
-            // added again, and a late one still is.
-            int settleDay = isPaid ? Util.dayOfMonthOrZero(e.incurredDate) : 0;
-            if (isPaid && settleDay == 0) settleDay = day; // no incurredDate recorded -- fall back to dueDay
-            boolean show = !hasCheckpoint
-                    || (isPaid ? settleDay > checkpointDay : day >= checkpointDay);
+            // late), and that settle date can even fall in a different calendar
+            // month than this period (e.g. a four-weekly item credited a few
+            // days before period start) -- so compare full dates, not just
+            // day-of-month, against the checkpoint so an early payment already
+            // reflected in the checkpoint's bank balance isn't added again, and
+            // a late one still is.
+            boolean show;
+            if (!hasCheckpoint) {
+                show = true;
+            } else if (isPaid) {
+                int cmp = Util.compareIsoDate(e.incurredDate, displayYear, displayMonth, checkpointDay);
+                show = cmp == Util.DATE_UNKNOWN ? day > checkpointDay : cmp > 0;
+            } else {
+                show = day >= checkpointDay;
+            }
             // An entry tagged with a card -- whether a one-off purchase or one
             // generated from a recurring item -- is folded into that card's own
             // repayment entry server-side (see sumPurchasesForPeriod) and

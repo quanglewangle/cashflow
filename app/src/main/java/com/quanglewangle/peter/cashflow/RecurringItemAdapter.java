@@ -257,11 +257,21 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         for (int i = 0; i < sortedContentRows.size(); i++) {
             Object row = sortedContentRows.get(i);
             int day = dayOf(row);
-            // Paid entries on the checkpoint day are already reflected in the checkpoint
-            // balance — suppress them so they aren't double-counted.
-            boolean show = suppressBefore == 0
-                    || day > suppressBefore
-                    || (day == suppressBefore && !isIncurred(row));
+            // Paid/received rows are already reflected in the checkpoint balance if they
+            // settled at or before it -- but a row's settle date can land in a different
+            // calendar month than dueDay implies (paid a few days early/late across a month
+            // boundary), so compare the real incurredDate against the checkpoint's full date
+            // rather than just dueDay vs checkpointDay. Not-yet-incurred rows have no settle
+            // date yet, so those still go by dueDay.
+            boolean show;
+            if (suppressBefore == 0) {
+                show = true;
+            } else if (isIncurred(row)) {
+                int cmp = Util.compareIsoDate(incurredDateOf(row), checkpointYear, checkpointMonth, checkpointDay);
+                show = cmp == Util.DATE_UNKNOWN ? day > suppressBefore : cmp > 0;
+            } else {
+                show = day >= suppressBefore;
+            }
             if (show && !Double.isNaN(balance)) {
                 double amount = effectiveAmount(row);
                 if (!Double.isNaN(amount)) {
@@ -693,6 +703,12 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         if (row instanceof EntryEntity)
             return "incurred".equals(((EntryEntity) row).status);
         return false;
+    }
+
+    private String incurredDateOf(Object row) {
+        if (row instanceof RecurringOccurrence) return ((RecurringOccurrence) row).entry.incurredDate;
+        if (row instanceof EntryEntity) return ((EntryEntity) row).incurredDate;
+        return null;
     }
 
     @Override

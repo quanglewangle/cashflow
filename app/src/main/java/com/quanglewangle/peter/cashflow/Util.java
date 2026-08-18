@@ -235,6 +235,30 @@ class Util {
         }
     }
 
+    /** Sentinel returned by compareIsoDate when isoDate is missing or unparseable. */
+    static final int DATE_UNKNOWN = Integer.MIN_VALUE;
+
+    /**
+     * Compares a "yyyy-MM-ddT..." date string against year/month/day, full calendar date (not
+     * just day-of-month) -- a settle date can land in a different month than the period it
+     * belongs to (paid a few days early/late across a month boundary), so day-of-month alone
+     * can't tell whether it's really before or after another date. Returns >0/0/<0 as isoDate is
+     * after/on/before the given date, or DATE_UNKNOWN if isoDate can't be parsed.
+     */
+    static int compareIsoDate(String isoDate, int year, int month, int day) {
+        if (isoDate == null || isoDate.length() < 10) return DATE_UNKNOWN;
+        try {
+            int y = Integer.parseInt(isoDate.substring(0, 4));
+            int m = Integer.parseInt(isoDate.substring(5, 7));
+            int d = Integer.parseInt(isoDate.substring(8, 10));
+            if (y != year) return y - year;
+            if (m != month) return m - month;
+            return d - day;
+        } catch (NumberFormatException e) {
+            return DATE_UNKNOWN;
+        }
+    }
+
     /** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11-13 -> "th", etc. */
     static String ordinal(int n) {
         if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
