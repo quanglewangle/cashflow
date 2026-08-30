@@ -316,27 +316,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private double todayBalance(int todayDay) {
-        // If today's checkpoint exists, start from it but still pick up anything else
-        // dated the same day that isn't already reflected in it (e.g. a one-off entry
-        // added after the checkpoint was recorded) -- matches recomputeRunningBalances,
-        // which already includes those rows.
-        if (checkpointYear == displayYear && checkpointMonth == displayMonth
-                && checkpointDay == todayDay && !Double.isNaN(checkpointBalance)) {
-            double result = checkpointBalance;
-            for (int i = 0; i < sortedContentRows.size(); i++) {
-                if (dayOf(sortedContentRows.get(i)) == todayDay && !Double.isNaN(runningBalances[i])) {
-                    result = runningBalances[i];
-                }
-            }
-            return result;
-        }
-        double result = computeChainedBroughtForward();
-        for (int i = 0; i < sortedContentRows.size(); i++) {
-            if (dayOf(sortedContentRows.get(i)) < todayDay && !Double.isNaN(runningBalances[i])) {
-                result = runningBalances[i];
-            }
-        }
-        return result;
+        return computeBalanceAsOf(todayDay);
     }
 
     // ---- Chaining ----
@@ -657,12 +637,17 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         return month >= 1 && month <= 12 ? names[month - 1] : "";
     }
 
-    /** Balance as of right now: all past items plus only today's items already marked incurred. */
+    /** Balance as of right now: all past items, plus any item already marked paid/received
+     *  (however far its due_day is from today -- an early payment settles on its incurred
+     *  date, not its nominal due_day). */
     public double getTodayBalance() {
         Calendar now = Calendar.getInstance();
         if (displayYear != now.get(Calendar.YEAR) || displayMonth != now.get(Calendar.MONTH) + 1)
             return Double.NaN;
-        int todayDay = now.get(Calendar.DAY_OF_MONTH);
+        return computeBalanceAsOf(now.get(Calendar.DAY_OF_MONTH));
+    }
+
+    private double computeBalanceAsOf(int todayDay) {
         // If today's checkpoint exists, start from it but still pick up anything else
         // dated the same day that isn't already reflected in it (e.g. a one-off entry
         // added after the checkpoint was recorded) -- matches recomputeRunningBalances,
@@ -677,17 +662,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             }
             return result;
         }
-        // Start from the balance just before today's items
         double result = computeChainedBroughtForward();
-        for (int i = 0; i < sortedContentRows.size(); i++) {
-            if (dayOf(sortedContentRows.get(i)) < todayDay && !Double.isNaN(runningBalances[i]))
-                result = runningBalances[i];
-        }
         if (Double.isNaN(result)) return Double.NaN;
-        // Add only today's items that have actually been marked paid/received
         for (Object row : sortedContentRows) {
-            if (dayOf(row) != todayDay) continue;
-            if (!isIncurred(row)) continue;
+            if (!hasSettledBy(row, todayDay)) continue;
             double amount = effectiveAmount(row);
             if (!Double.isNaN(amount)) {
                 if (isIncome(row)) result += amount;
@@ -695,6 +673,19 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             }
         }
         return result;
+    }
+
+    /** Whether a row's effect on the balance has already happened by todayDay -- a
+     *  not-yet-incurred row only counts once its due_day has passed, but an incurred
+     *  row goes by its real incurredDate, so an item paid early (e.g. a four-weekly
+     *  pension credited a few days before its nominal due_day) is picked up even
+     *  though due_day itself still lies in the future. */
+    private boolean hasSettledBy(Object row, int todayDay) {
+        if (isIncurred(row)) {
+            int cmp = Util.compareIsoDate(incurredDateOf(row), displayYear, displayMonth, todayDay);
+            return cmp == Util.DATE_UNKNOWN ? dayOf(row) <= todayDay : cmp <= 0;
+        }
+        return dayOf(row) < todayDay;
     }
 
     private boolean isIncurred(Object row) {
