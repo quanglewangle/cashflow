@@ -251,27 +251,9 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
         double broughtFwd = computeChainedBroughtForward();
         double balance = Double.isNaN(broughtFwd) ? Double.NaN : broughtFwd;
 
-        int suppressBefore = (checkpointYear == displayYear && checkpointMonth == displayMonth)
-                ? checkpointDay : 0;
-
         for (int i = 0; i < sortedContentRows.size(); i++) {
             Object row = sortedContentRows.get(i);
-            int day = dayOf(row);
-            // Paid/received rows are already reflected in the checkpoint balance if they
-            // settled at or before it -- but a row's settle date can land in a different
-            // calendar month than dueDay implies (paid a few days early/late across a month
-            // boundary), so compare the real incurredDate against the checkpoint's full date
-            // rather than just dueDay vs checkpointDay. Not-yet-incurred rows have no settle
-            // date yet, so those still go by dueDay.
-            boolean show;
-            if (suppressBefore == 0) {
-                show = true;
-            } else if (isIncurred(row)) {
-                int cmp = Util.compareIsoDate(incurredDateOf(row), checkpointYear, checkpointMonth, checkpointDay);
-                show = cmp == Util.DATE_UNKNOWN ? day > suppressBefore : cmp > 0;
-            } else {
-                show = day >= suppressBefore;
-            }
+            boolean show = !isSuppressedByCheckpoint(row);
             if (show && !Double.isNaN(balance)) {
                 double amount = effectiveAmount(row);
                 if (!Double.isNaN(amount)) {
@@ -648,23 +630,13 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private double computeBalanceAsOf(int todayDay) {
-        // If today's checkpoint exists, start from it but still pick up anything else
-        // dated the same day that isn't already reflected in it (e.g. a one-off entry
-        // added after the checkpoint was recorded) -- matches recomputeRunningBalances,
-        // which already includes those rows.
-        if (checkpointYear == displayYear && checkpointMonth == displayMonth
-                && checkpointDay == todayDay && !Double.isNaN(checkpointBalance)) {
-            double result = checkpointBalance;
-            for (int i = 0; i < sortedContentRows.size(); i++) {
-                if (dayOf(sortedContentRows.get(i)) == todayDay && !Double.isNaN(runningBalances[i])) {
-                    result = runningBalances[i];
-                }
-            }
-            return result;
-        }
         double result = computeChainedBroughtForward();
         if (Double.isNaN(result)) return Double.NaN;
         for (Object row : sortedContentRows) {
+            // Rows already reflected in the checkpoint balance must stay excluded here too,
+            // same as recomputeRunningBalances -- otherwise a row before the checkpoint gets
+            // counted twice (once in checkpointBalance, once again by hasSettledBy below).
+            if (isSuppressedByCheckpoint(row)) continue;
             if (!hasSettledBy(row, todayDay)) continue;
             double amount = effectiveAmount(row);
             if (!Double.isNaN(amount)) {
@@ -677,8 +649,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
 
     /** Whether a row's effect on the balance has already happened by todayDay -- a
      *  not-yet-incurred row only counts once its due_day has passed, but an incurred
-     *  row goes by its real incurredDate, so an item paid early (e.g. a four-weekly
-     *  pension credited a few days before its nominal due_day) is picked up even
+     *  row goes by its real incurredDate, so an item settled early (e.g. a four-weekly
+     *  pension received a few days before its nominal due_day) is picked up even
      *  though due_day itself still lies in the future. */
     private boolean hasSettledBy(Object row, int todayDay) {
         if (isIncurred(row)) {
@@ -686,6 +658,19 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             return cmp == Util.DATE_UNKNOWN ? dayOf(row) <= todayDay : cmp <= 0;
         }
         return dayOf(row) < todayDay;
+    }
+
+    /** Whether a row's effect on the balance is already baked into checkpointBalance --
+     *  paid/received rows go by their real incurredDate against the checkpoint's full date
+     *  (a settle date can land in a different calendar month than due_day implies), while
+     *  not-yet-incurred rows have no settle date yet, so those go by due_day vs checkpointDay. */
+    private boolean isSuppressedByCheckpoint(Object row) {
+        if (checkpointYear != displayYear || checkpointMonth != displayMonth) return false;
+        if (isIncurred(row)) {
+            int cmp = Util.compareIsoDate(incurredDateOf(row), checkpointYear, checkpointMonth, checkpointDay);
+            return cmp == Util.DATE_UNKNOWN ? dayOf(row) <= checkpointDay : cmp <= 0;
+        }
+        return dayOf(row) < checkpointDay;
     }
 
     private boolean isIncurred(Object row) {
