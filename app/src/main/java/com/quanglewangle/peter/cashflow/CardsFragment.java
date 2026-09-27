@@ -93,13 +93,18 @@ public class CardsFragment extends Fragment {
                 String[] monthNames = new DateFormatSymbols(Locale.UK).getShortMonths();
                 StringBuilder sb = new StringBuilder();
                 for (SavingsMonth m : months) {
+                    // Whole pounds, one line per month; transfers drop to a
+                    // second line only when there's interest too, so nothing wraps.
                     sb.append(monthNames[m.periodMonth - 1]).append(" ").append(m.periodYear)
-                            .append(String.format(Locale.UK, ":  £%,.2f", m.carriedForward));
-                    List<String> parts = new ArrayList<>();
-                    if (m.deposits > 0) parts.add(String.format(Locale.UK, "+£%,.2f in", m.deposits));
-                    if (m.withdrawals > 0) parts.add(String.format(Locale.UK, "−£%,.2f out", m.withdrawals));
-                    if (m.interest > 0) parts.add(String.format(Locale.UK, "+£%.2f interest", m.interest));
-                    if (!parts.isEmpty()) sb.append("\n    ").append(String.join(", ", parts));
+                            .append(String.format(Locale.UK, "  £%,.0f", m.carriedForward));
+                    List<String> transfers = new ArrayList<>();
+                    if (m.deposits > 0) transfers.add(String.format(Locale.UK, "+£%,.0f in", m.deposits));
+                    if (m.withdrawals > 0) transfers.add(String.format(Locale.UK, "−£%,.0f out", m.withdrawals));
+                    boolean hasInterest = Math.round(m.interest) > 0;
+                    if (hasInterest) sb.append(String.format(Locale.UK, "  £%,.0f interest", m.interest));
+                    if (!transfers.isEmpty()) {
+                        sb.append(hasInterest ? "\n    " : "  ").append(String.join(", ", transfers));
+                    }
                     sb.append("\n");
                 }
                 new AlertDialog.Builder(requireContext())
