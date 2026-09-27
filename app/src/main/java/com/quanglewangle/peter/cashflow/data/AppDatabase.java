@@ -11,7 +11,8 @@ import androidx.room.RoomDatabase;
         CreditCardEntity.class,
         RecurringItemEntity.class,
         EntryEntity.class
-}, version = 8, exportSchema = false)
+}, version = 9, exportSchema = false)
+// v9: EntryEntity gained savingsAccountId.
 // v8: EntryEntity gained incurredDate.
 // v7: CreditCardEntity gained carriesBalance.
 // v6: CategoryEntity gained parentId.

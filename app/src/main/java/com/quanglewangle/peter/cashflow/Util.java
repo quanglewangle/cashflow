@@ -260,6 +260,43 @@ class Util {
     }
 
     /** 1 -> "1st", 2 -> "2nd", 3 -> "3rd", 4 -> "4th", 11-13 -> "th", etc. */
+    /** Wires the add/edit entry dialog's "Transfer from savings" box: shown only
+     *  while the type spinner is on income, labelled with (and tagged with the id
+     *  of) the first savings account once it loads. Read back with
+     *  {@link #savingsAccountIdFrom}. */
+    static void setupFromSavingsCheckbox(com.quanglewangle.peter.cashflow.data.Repository repo,
+                                         android.widget.Spinner spinnerItemType, String[] itemTypes,
+                                         android.widget.CheckBox box, Long currentAccountId) {
+        box.setChecked(currentAccountId != null);
+        box.setTag(currentAccountId);
+        spinnerItemType.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> parent, android.view.View view, int pos, long id) {
+                box.setVisibility("income".equals(itemTypes[pos]) ? android.view.View.VISIBLE : android.view.View.GONE);
+            }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { }
+        });
+        repo.getSavingsAccounts(new com.quanglewangle.peter.cashflow.api.ApiService.Callback<List<com.quanglewangle.peter.cashflow.data.SavingsAccount>>() {
+            @Override public void onSuccess(List<com.quanglewangle.peter.cashflow.data.SavingsAccount> accounts) {
+                if (accounts.isEmpty()) return;
+                com.quanglewangle.peter.cashflow.data.SavingsAccount a = accounts.get(0);
+                for (com.quanglewangle.peter.cashflow.data.SavingsAccount x : accounts) {
+                    if (currentAccountId != null && x.id == currentAccountId) a = x;
+                }
+                box.setText("Transfer from " + a.name + " savings");
+                box.setTag(a.id);
+            }
+            @Override public void onError(String error) { /* keep whatever tag we had */ }
+        });
+    }
+
+    /** The savings_account_id to send for an entry saved from that dialog: the
+     *  ticked account for income, null otherwise (the server tags savings-type
+     *  entries itself). */
+    static Long savingsAccountIdFrom(android.widget.CheckBox box, String itemType) {
+        if (!"income".equals(itemType) || !box.isChecked()) return null;
+        return (Long) box.getTag();
+    }
+
     static String ordinal(int n) {
         if (n % 100 >= 11 && n % 100 <= 13) return n + "th";
         switch (n % 10) {

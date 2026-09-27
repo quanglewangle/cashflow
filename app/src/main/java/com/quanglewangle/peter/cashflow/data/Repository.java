@@ -350,6 +350,27 @@ public class Repository {
         });
     }
 
+    public void getSavingsAccounts(ApiService.Callback<List<SavingsAccount>> callback) {
+        api.getSavingsAccounts(new ApiService.Callback<List<SavingsAccount>>() {
+            @Override public void onSuccess(List<SavingsAccount> result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
+
+    public void updateSavingsAccount(SavingsAccount account, Runnable onDone, ErrorCallback onError) {
+        api.updateSavingsAccount(account, new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
+    public void getSavingsProjection(long accountId, int months, ApiService.Callback<List<SavingsMonth>> callback) {
+        api.getSavingsProjection(accountId, months, new ApiService.Callback<List<SavingsMonth>>() {
+            @Override public void onSuccess(List<SavingsMonth> result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
+
     public void getCheckpoints(ApiService.Callback<List<BalanceCheckpoint>> callback) {
         api.getCheckpoints(new ApiService.Callback<List<BalanceCheckpoint>>() {
             @Override public void onSuccess(List<BalanceCheckpoint> result) { main.post(() -> callback.onSuccess(result)); }

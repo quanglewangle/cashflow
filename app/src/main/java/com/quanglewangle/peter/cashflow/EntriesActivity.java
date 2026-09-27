@@ -199,6 +199,8 @@ public class EntriesActivity extends AppCompatActivity {
         cardNames.add("(none)");
         for (CreditCardEntity c : creditCards) cardNames.add(c.name);
         spinnerCreditCard.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item, cardNames));
+        android.widget.CheckBox checkFromSavings = formView.findViewById(R.id.checkFromSavings);
+        Util.setupFromSavingsCheckbox(repo, spinnerItemType, ITEM_TYPES, checkFromSavings, null);
 
         new AlertDialog.Builder(this)
                 .setTitle("Add one-off entry")
@@ -224,6 +226,7 @@ public class EntriesActivity extends AppCompatActivity {
                     entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
                     int cardPos = spinnerCreditCard.getSelectedItemPosition();
                     entry.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
+                    entry.savingsAccountId = Util.savingsAccountIdFrom(checkFromSavings, entry.itemType);
                     repo.addEntry(entry, this::loadEntries, this::showError);
                 })
                 .show();

@@ -10,6 +10,8 @@ import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
+import com.quanglewangle.peter.cashflow.data.SavingsAccount;
+import com.quanglewangle.peter.cashflow.data.SavingsMonth;
 
 import org.json.JSONArray;
 import org.json.JSONException;
@@ -460,6 +462,7 @@ public class ApiService {
         set(body, "decay_per_week", e.decayPerWeek);
         set(body, "decay_start_date", e.decayStartDate);
         set(body, "incurred_date", e.incurredDate);
+        set(body, "savings_account_id", e.savingsAccountId);
         return body;
     }
 
@@ -481,7 +484,69 @@ public class ApiService {
         e.decayStartDate = o.isNull("decay_start_date") ? null : o.optString("decay_start_date");
         e.incurredDate = o.isNull("incurred_date") ? null : o.optString("incurred_date");
         e.effectiveAmount = o.optDouble("effective_amount", e.plannedAmount);
+        e.savingsAccountId = o.isNull("savings_account_id") ? null : o.optLong("savings_account_id");
         return e;
+    }
+
+    // ---- savings accounts ----
+
+    public void getSavingsAccounts(Callback<List<SavingsAccount>> callback) {
+        Request request = new Request.Builder().url(BASE_URL + "savings-accounts").build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<SavingsAccount> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    SavingsAccount a = new SavingsAccount();
+                    a.id = o.optLong("id");
+                    a.name = o.optString("name");
+                    a.openingBalance = o.optDouble("opening_balance", 0);
+                    a.openingDate = o.optString("opening_date");
+                    a.interestRate = o.optDouble("interest_rate", 0);
+                    a.interestDay = o.optInt("interest_day", 1);
+                    a.currentBalance = o.optDouble("current_balance", 0);
+                    out.add(a);
+                }
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    public void updateSavingsAccount(SavingsAccount a, Callback<Void> callback) {
+        JSONObject body = new JSONObject();
+        set(body, "name", a.name);
+        set(body, "opening_balance", a.openingBalance);
+        set(body, "opening_date", a.openingDate);
+        set(body, "interest_rate", a.interestRate);
+        set(body, "interest_day", a.interestDay);
+        Request request = authed(new Request.Builder().url(BASE_URL + "savings-accounts/" + a.id).put(jsonBody(body))).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    public void getSavingsProjection(long accountId, int months, Callback<List<SavingsMonth>> callback) {
+        Request request = new Request.Builder()
+                .url(BASE_URL + "savings-accounts/" + accountId + "/projection?months=" + months)
+                .build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<SavingsMonth> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    SavingsMonth m = new SavingsMonth();
+                    m.periodYear = o.optInt("period_year");
+                    m.periodMonth = o.optInt("period_month");
+                    m.broughtForward = o.optDouble("brought_forward", 0);
+                    m.deposits = o.optDouble("deposits", 0);
+                    m.withdrawals = o.optDouble("withdrawals", 0);
+                    m.interest = o.optDouble("interest", 0);
+                    m.carriedForward = o.optDouble("carried_forward", 0);
+                    out.add(m);
+                }
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
     }
 
     // ---- periods / forecast ----

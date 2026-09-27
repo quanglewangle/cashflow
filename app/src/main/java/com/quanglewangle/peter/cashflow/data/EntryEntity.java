@@ -31,4 +31,7 @@ public class EntryEntity {
     // zero, frozen once incurred) -- use for display/balance math. Edit dialogs
     // should still prefill from plannedAmount, the undecayed original.
     public double effectiveAmount;
+    // Tags this entry as a transfer with a savings account: into it for a
+    // savings entry (the server tags those automatically), out of it for income.
+    public Long savingsAccountId;
 }

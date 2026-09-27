@@ -163,6 +163,9 @@ public class ConfirmBankPaymentActivity extends AppCompatActivity {
         spinnerCreditCard.setAdapter(new ArrayAdapter<>(this, android.R.layout.simple_spinner_dropdown_item,
                 new String[]{"(none)"}));
 
+        android.widget.CheckBox checkFromSavings = formView.findViewById(R.id.checkFromSavings);
+        Util.setupFromSavingsCheckbox(repo, spinnerItemType, ITEM_TYPES, checkFromSavings, null);
+
         inputName.setText(description);
         inputAmount.setText(String.format(Locale.UK, "%.2f", amount));
         int day = Integer.parseInt(dateIso.substring(8, 10));
@@ -193,6 +196,7 @@ public class ConfirmBankPaymentActivity extends AppCompatActivity {
                     entry.incurredDate = dateIso + "T00:00:00Z";
                     entry.dueDay = parseIntOrNull(inputDueDay.getText().toString());
                     entry.creditCardId = null;
+                    entry.savingsAccountId = Util.savingsAccountIdFrom(checkFromSavings, entry.itemType);
                     repo.addEntry(entry,
                             () -> { Toast.makeText(this, "Added " + name, Toast.LENGTH_SHORT).show(); finish(); },
                             err -> { Toast.makeText(this, "Failed to add: " + err, Toast.LENGTH_LONG).show(); finish(); });

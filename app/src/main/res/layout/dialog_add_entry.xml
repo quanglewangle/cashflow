@@ -32,6 +32,15 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content" />
 
+    <!-- Income only: marks this as money coming out of a savings account.
+         Savings-type entries are always tagged as transfers into one. -->
+    <CheckBox
+        android:id="@+id/checkFromSavings"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Transfer from savings"
+        android:visibility="gone" />
+
     <EditText
         android:id="@+id/inputAmount"
         android:layout_width="match_parent"

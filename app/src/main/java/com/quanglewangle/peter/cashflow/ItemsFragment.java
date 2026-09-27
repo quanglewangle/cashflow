@@ -808,6 +808,8 @@ public class ItemsFragment extends Fragment {
         cardNames.add("(none)");
         for (CreditCardEntity c : creditCards) cardNames.add(c.name);
         spinnerCreditCard.setAdapter(new ArrayAdapter<>(requireContext(), android.R.layout.simple_spinner_dropdown_item, cardNames));
+        android.widget.CheckBox checkFromSavings = formView.findViewById(R.id.checkFromSavings);
+        Util.setupFromSavingsCheckbox(repo, spinnerItemType, ITEM_TYPES, checkFromSavings, null);
 
         new AlertDialog.Builder(requireContext())
                 .setTitle("Add one-off entry")
@@ -833,6 +835,7 @@ public class ItemsFragment extends Fragment {
                     entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
                     int cardPos = spinnerCreditCard.getSelectedItemPosition();
                     entry.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
+                    entry.savingsAccountId = Util.savingsAccountIdFrom(checkFromSavings, entry.itemType);
                     repo.addEntry(entry, () -> {
                         loadEntries();
                         loadBalance();
@@ -884,6 +887,10 @@ public class ItemsFragment extends Fragment {
             }
         }
 
+        android.widget.CheckBox checkFromSavings = formView.findViewById(R.id.checkFromSavings);
+        Util.setupFromSavingsCheckbox(repo, spinnerItemType, ITEM_TYPES, checkFromSavings,
+                "income".equals(entry.itemType) ? entry.savingsAccountId : null);
+
         new AlertDialog.Builder(requireContext())
                 .setTitle("Edit one-off entry")
                 .setView(formView)
@@ -918,6 +925,7 @@ public class ItemsFragment extends Fragment {
                     entry.decayPerWeek = parseDoubleOrNull(inputDecayPerWeek.getText().toString());
                     int cardPos = spinnerCreditCard.getSelectedItemPosition();
                     entry.creditCardId = cardPos > 0 ? creditCards.get(cardPos - 1).id : null;
+                    entry.savingsAccountId = Util.savingsAccountIdFrom(checkFromSavings, entry.itemType);
                     repo.updateEntry(entry, () -> {
                         loadEntries();
                         loadBalance();

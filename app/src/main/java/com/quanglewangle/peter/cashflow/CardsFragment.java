@@ -11,6 +11,7 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
+import androidx.recyclerview.widget.ConcatAdapter;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
@@ -22,6 +23,9 @@ import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
+import com.quanglewangle.peter.cashflow.data.SavingsAccount;
+import com.quanglewangle.peter.cashflow.data.SavingsMonth;
+import com.quanglewangle.peter.cashflow.api.ApiService;
 
 import java.text.DateFormatSymbols;
 import java.util.ArrayList;
@@ -35,6 +39,7 @@ public class CardsFragment extends Fragment {
 
     private SwipeRefreshLayout swipeRefresh;
     private CreditCardAdapter adapter;
+    private SavingsAccountAdapter savingsAdapter;
     private Repository repo;
 
     @Nullable
@@ -57,7 +62,9 @@ public class CardsFragment extends Fragment {
         adapter = new CreditCardAdapter(new ArrayList<>(), this::showAddPurchaseDialog,
                 this::showPurchasesDialog, this::showSubscriptionsDialog,
                 this::showCheckpointsDialog, this::showEditDialog);
-        recyclerView.setAdapter(adapter);
+        savingsAdapter = new SavingsAccountAdapter(new ArrayList<>(),
+                this::showSavingsProjectionDialog, this::showEditSavingsDialog);
+        recyclerView.setAdapter(new ConcatAdapter(savingsAdapter, adapter));
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
         swipeRefresh.setOnRefreshListener(this::loadAll);
@@ -71,6 +78,74 @@ public class CardsFragment extends Fragment {
             adapter.setItems(cards);
             if (!fromCache) swipeRefresh.setRefreshing(false);
         });
+        repo.getSavingsAccounts(new ApiService.Callback<List<SavingsAccount>>() {
+            @Override public void onSuccess(List<SavingsAccount> accounts) { savingsAdapter.setItems(accounts); }
+            @Override public void onError(String error) { /* savings row just stays empty */ }
+        });
+    }
+
+    /** Month-by-month balance: transfers in/out (entries tagged with this
+     *  account) plus interest, from the opening month a year ahead. */
+    private void showSavingsProjectionDialog(SavingsAccount account) {
+        repo.getSavingsProjection(account.id, 12, new ApiService.Callback<List<SavingsMonth>>() {
+            @Override public void onSuccess(List<SavingsMonth> months) {
+                if (getContext() == null) return;
+                String[] monthNames = new DateFormatSymbols(Locale.UK).getShortMonths();
+                StringBuilder sb = new StringBuilder();
+                for (SavingsMonth m : months) {
+                    sb.append(monthNames[m.periodMonth - 1]).append(" ").append(m.periodYear)
+                            .append(String.format(Locale.UK, ":  £%,.2f", m.carriedForward));
+                    List<String> parts = new ArrayList<>();
+                    if (m.deposits > 0) parts.add(String.format(Locale.UK, "+£%,.2f in", m.deposits));
+                    if (m.withdrawals > 0) parts.add(String.format(Locale.UK, "−£%,.2f out", m.withdrawals));
+                    if (m.interest > 0) parts.add(String.format(Locale.UK, "+£%.2f interest", m.interest));
+                    if (!parts.isEmpty()) sb.append("\n    ").append(String.join(", ", parts));
+                    sb.append("\n");
+                }
+                new AlertDialog.Builder(requireContext())
+                        .setTitle(account.name + " — month-end balance")
+                        .setMessage(sb.toString().trim())
+                        .setPositiveButton("OK", null)
+                        .show();
+            }
+            @Override public void onError(String error) { showError(error); }
+        });
+    }
+
+    /** Re-anchors the account to a real balance as of today (like a cash
+     *  checkpoint) and edits the interest terms. */
+    private void showEditSavingsDialog(SavingsAccount account) {
+        View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_edit_savings_account, null);
+        EditText inputBalance = formView.findViewById(R.id.inputBalance);
+        EditText inputRate = formView.findViewById(R.id.inputRate);
+        EditText inputInterestDay = formView.findViewById(R.id.inputInterestDay);
+        inputBalance.setText(String.format(Locale.UK, "%.2f", account.currentBalance));
+        inputRate.setText(String.valueOf(account.interestRate));
+        inputInterestDay.setText(String.valueOf(account.interestDay));
+
+        new AlertDialog.Builder(requireContext())
+                .setTitle("Edit " + account.name)
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    Double balance = parseDoubleOrNull(inputBalance.getText().toString());
+                    Double rate = parseDoubleOrNull(inputRate.getText().toString());
+                    Integer day = parseDay(inputInterestDay.getText().toString());
+                    if (balance == null || rate == null || day == null) {
+                        Toast.makeText(getContext(), "Balance, rate and a day 1-31 are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    // Only re-anchor if the balance was actually changed, so
+                    // editing just the rate doesn't reset the opening date.
+                    if (Math.abs(balance - account.currentBalance) >= 0.005) {
+                        account.openingBalance = balance;
+                        account.openingDate = new java.text.SimpleDateFormat("yyyy-MM-dd", Locale.UK).format(new java.util.Date());
+                    }
+                    account.interestRate = rate;
+                    account.interestDay = day;
+                    repo.updateSavingsAccount(account, this::loadAll, this::showError);
+                })
+                .show();
     }
 
     private void showEditDialog(@Nullable CreditCardEntity existing) {
