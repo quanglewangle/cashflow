@@ -265,6 +265,10 @@ public class ApiService {
                 if (oneOffs != null) {
                     for (int i = 0; i < oneOffs.length(); i++) b.oneOffs.add(parseEntry(oneOffs.optJSONObject(i)));
                 }
+                JSONArray coveredExtras = o.optJSONArray("covered_extras");
+                if (coveredExtras != null) {
+                    for (int i = 0; i < coveredExtras.length(); i++) b.coveredExtras.add(parseEntry(coveredExtras.optJSONObject(i)));
+                }
                 if (!o.isNull("unpaid_prior_bill")) b.unpaidPriorBill = parseEntry(o.optJSONObject("unpaid_prior_bill"));
                 b.entryId = o.isNull("entry_id") ? null : o.optLong("entry_id");
                 b.manuallySet = o.optBoolean("manually_set", false);

@@ -335,15 +335,23 @@ public class ItemsFragment extends Fragment {
                 } else if (b.checkpoint != null) {
                     addNote(container, String.format(Locale.UK, "Checkpoint (%s %d) — £%.2f",
                             Util.ordinal(b.checkpoint.periodDay), b.checkpoint.periodMonth, b.checkpoint.balance));
-                    if (!b.coveredByCheckpoint.isEmpty()) {
+                    int coveredCount = b.coveredByCheckpoint.size() + b.coveredExtras.size();
+                    if (coveredCount > 0) {
                         double coveredTotal = 0;
                         for (CardPurchase p : b.coveredByCheckpoint) coveredTotal += p.amount;
-                        addNote(container, String.format(Locale.UK, "  (already covers %d purchase%s totalling £%.2f)",
-                                b.coveredByCheckpoint.size(), b.coveredByCheckpoint.size() == 1 ? "" : "s", coveredTotal));
+                        StringBuilder names = new StringBuilder();
+                        for (EntryEntity e : b.coveredExtras) {
+                            coveredTotal += "income".equals(e.itemType) ? -e.effectiveAmount : e.effectiveAmount;
+                            names.append(names.length() == 0 ? ", incl. " : ", ").append(e.name);
+                        }
+                        addNote(container, String.format(Locale.UK, "  (already covers %d item%s totalling £%.2f%s)",
+                                coveredCount, coveredCount == 1 ? "" : "s", coveredTotal, names));
                     }
                     if (b.unpaidPriorBill != null) {
-                        addNote(container, String.format(Locale.UK, "  (minus %s, still unpaid from last period — £%.2f)",
-                                b.unpaidPriorBill.name, b.unpaidPriorBill.effectiveAmount));
+                        String month = new java.text.DateFormatSymbols(Locale.UK).getMonths()[b.unpaidPriorBill.periodMonth - 1];
+                        addNote(container, String.format(Locale.UK,
+                                "  (minus %s's %s bill — £%.2f, still in the checkpoint but paid separately that month)",
+                                month, b.unpaidPriorBill.name, b.unpaidPriorBill.effectiveAmount));
                     }
                     addNote(container, "\nAdded since checkpoint:");
                 } else {
