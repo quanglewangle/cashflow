@@ -98,34 +98,59 @@ public class CardsFragment extends Fragment {
     /** Month-by-month balance: transfers in/out (entries tagged with this
      *  account) plus interest, from the opening month a year ahead. */
     private void showSavingsProjectionDialog(SavingsAccount account) {
-        repo.getSavingsProjection(account.id, 12, new ApiService.Callback<List<SavingsMonth>>() {
+        repo.getSavingsProjection(account.id, 6, new ApiService.Callback<List<SavingsMonth>>() {
             @Override public void onSuccess(List<SavingsMonth> months) {
                 if (getContext() == null) return;
-                String[] monthNames = new DateFormatSymbols(Locale.UK).getShortMonths();
-                StringBuilder sb = new StringBuilder();
+                String[] monthNames = new DateFormatSymbols(Locale.UK).getMonths();
+                int pad = (int) (24 * getResources().getDisplayMetrics().density);
+                android.widget.LinearLayout list = new android.widget.LinearLayout(requireContext());
+                list.setOrientation(android.widget.LinearLayout.VERTICAL);
+                list.setPadding(pad, pad / 2, pad, 0);
                 for (SavingsMonth m : months) {
-                    // Whole pounds, one line per month; transfers drop to a
-                    // second line only when there's interest too, so nothing wraps.
-                    sb.append(monthNames[m.periodMonth - 1]).append(" ").append(m.periodYear)
-                            .append(String.format(Locale.UK, "  £%,.0f", m.carriedForward));
-                    List<String> transfers = new ArrayList<>();
-                    if (m.deposits > 0) transfers.add(String.format(Locale.UK, "+£%,.0f in", m.deposits));
-                    if (m.withdrawals > 0) transfers.add(String.format(Locale.UK, "−£%,.0f out", m.withdrawals));
-                    boolean hasInterest = Math.round(m.interest) > 0;
-                    if (hasInterest) sb.append(String.format(Locale.UK, "  £%,.0f interest", m.interest));
-                    if (!transfers.isEmpty()) {
-                        sb.append(hasInterest ? "\n    " : "  ").append(String.join(", ", transfers));
-                    }
-                    sb.append("\n");
+                    // Whole pounds: the month's interest and transfers on their
+                    // own indented lines, then its closing balance in bold.
+                    if (Math.round(m.interest) > 0)
+                        list.addView(savingsRow("Interest", String.format(Locale.UK, "£%,.0f", m.interest), false));
+                    if (m.deposits > 0)
+                        list.addView(savingsRow("In", String.format(Locale.UK, "+£%,.0f", m.deposits), false));
+                    if (m.withdrawals > 0)
+                        list.addView(savingsRow("Out", String.format(Locale.UK, "−£%,.0f", m.withdrawals), false));
+                    list.addView(savingsRow(monthNames[m.periodMonth - 1],
+                            String.format(Locale.UK, "£%,.0f", m.carriedForward), true));
                 }
+                android.widget.ScrollView scroll = new android.widget.ScrollView(requireContext());
+                scroll.addView(list);
                 new AlertDialog.Builder(requireContext())
                         .setTitle(account.name + " — month-end balance")
-                        .setMessage(sb.toString().trim())
+                        .setView(scroll)
                         .setPositiveButton("OK", null)
                         .show();
             }
             @Override public void onError(String error) { showError(error); }
         });
+    }
+
+    /** One line of the savings projection: label left, figure right-aligned.
+     *  A month-end line is bold and unindented, and ends its month's group. */
+    private View savingsRow(String label, String amount, boolean monthEnd) {
+        float density = getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout row = new android.widget.LinearLayout(requireContext());
+        row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
+        row.setPadding(monthEnd ? 0 : (int) (16 * density), 0, 0, monthEnd ? (int) (14 * density) : 0);
+        android.widget.TextView left = new android.widget.TextView(requireContext());
+        android.widget.TextView right = new android.widget.TextView(requireContext());
+        left.setText(label);
+        right.setText(amount);
+        right.setGravity(android.view.Gravity.END);
+        for (android.widget.TextView t : new android.widget.TextView[]{left, right}) {
+            t.setTextSize(16);
+            if (monthEnd) t.setTypeface(null, android.graphics.Typeface.BOLD);
+        }
+        row.addView(left, new android.widget.LinearLayout.LayoutParams(0,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1));
+        row.addView(right, new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT, android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+        return row;
     }
 
     /** Re-anchors the account to a real balance as of today (like a cash
