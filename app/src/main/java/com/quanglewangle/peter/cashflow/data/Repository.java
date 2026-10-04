@@ -364,6 +364,30 @@ public class Repository {
         });
     }
 
+    public void getHolidays(ApiService.Callback<List<Holiday>> callback) {
+        api.getHolidays(new ApiService.Callback<List<Holiday>>() {
+            @Override public void onSuccess(List<Holiday> result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
+
+    /** Adds the holiday if it has no id yet, otherwise updates it. */
+    public void saveHoliday(Holiday holiday, Runnable onDone, ErrorCallback onError) {
+        ApiService.Callback<Void> cb = new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        };
+        if (holiday.id == 0) api.addHoliday(holiday, cb);
+        else api.updateHoliday(holiday, cb);
+    }
+
+    public void deleteHoliday(long id, Runnable onDone, ErrorCallback onError) {
+        api.deleteHoliday(id, new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
     public void getSavingsProjection(long accountId, int months, ApiService.Callback<List<SavingsMonth>> callback) {
         api.getSavingsProjection(accountId, months, new ApiService.Callback<List<SavingsMonth>>() {
             @Override public void onSuccess(List<SavingsMonth> result) { main.post(() -> callback.onSuccess(result)); }

@@ -10,6 +10,7 @@ import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
+import com.quanglewangle.peter.cashflow.data.Holiday;
 import com.quanglewangle.peter.cashflow.data.SavingsAccount;
 import com.quanglewangle.peter.cashflow.data.SavingsMonth;
 
@@ -547,6 +548,57 @@ public class ApiService {
             }
             @Override public void onError(String error) { callback.onError(error); }
         });
+    }
+
+    // ---- holidays ----
+
+    public void getHolidays(Callback<List<Holiday>> callback) {
+        Request request = new Request.Builder().url(BASE_URL + "holidays").build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<Holiday> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    Holiday h = new Holiday();
+                    h.id = o.optLong("id");
+                    h.creditCardId = o.optLong("credit_card_id");
+                    h.name = o.optString("name");
+                    h.startDate = o.optString("start_date");
+                    h.endDate = o.optString("end_date");
+                    h.perDay = o.optDouble("per_day", 0);
+                    h.total = o.optDouble("total", 0);
+                    h.remaining = o.optDouble("remaining", 0);
+                    out.add(h);
+                }
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    private JSONObject holidayBody(Holiday h) {
+        JSONObject body = new JSONObject();
+        set(body, "credit_card_id", h.creditCardId);
+        set(body, "name", h.name);
+        set(body, "start_date", h.startDate);
+        set(body, "end_date", h.endDate);
+        set(body, "per_day", h.perDay);
+        return body;
+    }
+
+    public void addHoliday(Holiday h, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "holidays").post(jsonBody(holidayBody(h)))).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    public void updateHoliday(Holiday h, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "holidays/" + h.id).put(jsonBody(holidayBody(h)))).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    public void deleteHoliday(long id, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "holidays/" + id).delete()).build();
+        enqueue(request, voidCallback(callback));
     }
 
     // ---- periods / forecast ----

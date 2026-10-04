@@ -21,6 +21,7 @@ import com.quanglewangle.peter.cashflow.data.CardPurchase;
 import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
+import com.quanglewangle.peter.cashflow.data.Holiday;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
 import com.quanglewangle.peter.cashflow.data.SavingsAccount;
@@ -40,6 +41,9 @@ public class CardsFragment extends Fragment {
     private SwipeRefreshLayout swipeRefresh;
     private CreditCardAdapter adapter;
     private SavingsAccountAdapter savingsAdapter;
+    private HolidayAdapter holidayAdapter;
+    private List<CreditCardEntity> cards = new ArrayList<>();
+    private List<Holiday> holidays = new ArrayList<>();
     private Repository repo;
 
     @Nullable
@@ -64,7 +68,8 @@ public class CardsFragment extends Fragment {
                 this::showCheckpointsDialog, this::showEditDialog);
         savingsAdapter = new SavingsAccountAdapter(new ArrayList<>(),
                 this::showSavingsProjectionDialog, this::showEditSavingsDialog);
-        recyclerView.setAdapter(new ConcatAdapter(savingsAdapter, adapter));
+        holidayAdapter = new HolidayAdapter(this::showEditHolidayDialog);
+        recyclerView.setAdapter(new ConcatAdapter(savingsAdapter, adapter, holidayAdapter));
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
         swipeRefresh.setOnRefreshListener(this::loadAll);
@@ -76,7 +81,13 @@ public class CardsFragment extends Fragment {
         swipeRefresh.setRefreshing(true);
         repo.getCreditCards((cards, fromCache) -> {
             adapter.setItems(cards);
+            this.cards = cards;
+            showHolidays();
             if (!fromCache) swipeRefresh.setRefreshing(false);
+        });
+        repo.getHolidays(new ApiService.Callback<List<Holiday>>() {
+            @Override public void onSuccess(List<Holiday> result) { holidays = result; showHolidays(); }
+            @Override public void onError(String error) { /* holiday rows just stay as they were */ }
         });
         repo.getSavingsAccounts(new ApiService.Callback<List<SavingsAccount>>() {
             @Override public void onSuccess(List<SavingsAccount> accounts) { savingsAdapter.setItems(accounts); }
@@ -151,6 +162,127 @@ public class CardsFragment extends Fragment {
                     repo.updateSavingsAccount(account, this::loadAll, this::showError);
                 })
                 .show();
+    }
+
+    private void showHolidays() {
+        Map<Long, String> names = new HashMap<>();
+        for (CreditCardEntity c : cards) names.put(c.id, c.name);
+        holidayAdapter.setItems(holidays, names);
+    }
+
+    /** Adds (existing == null) or edits a holiday: a per-day spend on a card
+     *  between two dates, which the server adds to that card's bill(s). */
+    private void showEditHolidayDialog(@Nullable Holiday existing) {
+        if (cards.isEmpty()) {
+            Toast.makeText(getContext(), "Add a card first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_edit_holiday, null);
+        EditText inputName = formView.findViewById(R.id.inputName);
+        android.widget.Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);
+        EditText inputStart = formView.findViewById(R.id.inputStartDate);
+        EditText inputEnd = formView.findViewById(R.id.inputEndDate);
+        EditText inputPerDay = formView.findViewById(R.id.inputPerDay);
+        android.widget.TextView totalText = formView.findViewById(R.id.totalText);
+
+        List<String> cardNames = new ArrayList<>();
+        int selected = 0;
+        for (int i = 0; i < cards.size(); i++) {
+            CreditCardEntity c = cards.get(i);
+            cardNames.add(c.name);
+            if (existing != null ? c.id == existing.creditCardId : c.name.equalsIgnoreCase("Visacard")) selected = i;
+        }
+        android.widget.ArrayAdapter<String> cardAdapter = new android.widget.ArrayAdapter<>(
+                requireContext(), android.R.layout.simple_spinner_item, cardNames);
+        cardAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerCard.setAdapter(cardAdapter);
+        spinnerCard.setSelection(selected);
+
+        // Dates are held as "YYYY-MM-DD" in each field's tag; the field shows them readably.
+        Runnable updateTotal = () -> {
+            String start = (String) inputStart.getTag(), end = (String) inputEnd.getTag();
+            Double perDay = parseDoubleOrNull(inputPerDay.getText().toString());
+            long days = holidayDays(start, end);
+            totalText.setText(days > 0 && perDay != null
+                    ? String.format(Locale.UK, "%d days × £%.2f = £%,.2f", days, perDay, days * perDay)
+                    : "");
+        };
+        setupHolidayDateField(inputStart, existing != null ? existing.startDate : null, updateTotal);
+        setupHolidayDateField(inputEnd, existing != null ? existing.endDate : null, updateTotal);
+        inputPerDay.addTextChangedListener(new android.text.TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void onTextChanged(CharSequence s, int a, int b, int c) {}
+            @Override public void afterTextChanged(android.text.Editable s) { updateTotal.run(); }
+        });
+        if (existing != null) {
+            inputName.setText(existing.name);
+            inputPerDay.setText(String.format(Locale.UK, "%.2f", existing.perDay));
+        }
+        updateTotal.run();
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext())
+                .setTitle(existing == null ? "Add holiday" : "Edit holiday")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String name = inputName.getText().toString().trim();
+                    String start = (String) inputStart.getTag(), end = (String) inputEnd.getTag();
+                    Double perDay = parseDoubleOrNull(inputPerDay.getText().toString());
+                    if (name.isEmpty() || start == null || end == null || perDay == null || perDay <= 0) {
+                        Toast.makeText(getContext(), "Name, both days and a daily amount are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    if (end.compareTo(start) < 0) {
+                        Toast.makeText(getContext(), "The last day is before the first", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    Holiday h = existing != null ? existing : new Holiday();
+                    h.name = name;
+                    h.creditCardId = cards.get(spinnerCard.getSelectedItemPosition()).id;
+                    h.startDate = start;
+                    h.endDate = end;
+                    h.perDay = perDay;
+                    repo.saveHoliday(h, this::loadAll, this::showError);
+                });
+        if (existing != null) {
+            builder.setNeutralButton("Delete", (dialog, which) ->
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("Delete " + existing.name + "?")
+                            .setMessage("Its buffer comes off the card bill.")
+                            .setPositiveButton("Delete", (d2, w2) ->
+                                    repo.deleteHoliday(existing.id, this::loadAll, this::showError))
+                            .setNegativeButton("Cancel", null)
+                            .show());
+        }
+        builder.show();
+    }
+
+    /** Makes a date field open a date picker, keeping "YYYY-MM-DD" in its tag. */
+    private void setupHolidayDateField(EditText field, @Nullable String iso, Runnable onChange) {
+        java.util.function.Consumer<String> setDate = d -> {
+            field.setTag(d);
+            field.setText(new java.text.SimpleDateFormat("EEE d MMM yyyy", Locale.UK)
+                    .format(java.sql.Date.valueOf(d)));
+            onChange.run();
+        };
+        if (iso != null) setDate.accept(iso);
+        field.setOnClickListener(v -> {
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            String current = (String) field.getTag();
+            if (current != null) cal.setTime(java.sql.Date.valueOf(current));
+            new android.app.DatePickerDialog(requireContext(), (picker, y, m, d) ->
+                    setDate.accept(String.format(Locale.UK, "%04d-%02d-%02d", y, m + 1, d)),
+                    cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
+                    cal.get(java.util.Calendar.DAY_OF_MONTH)).show();
+        });
+    }
+
+    /** Days from start to end inclusive, or 0 if either is missing or end is before start. */
+    private static long holidayDays(@Nullable String start, @Nullable String end) {
+        if (start == null || end == null) return 0;
+        long days = java.time.temporal.ChronoUnit.DAYS.between(
+                java.time.LocalDate.parse(start), java.time.LocalDate.parse(end)) + 1;
+        return Math.max(days, 0);
     }
 
     private void showEditDialog(@Nullable CreditCardEntity existing) {
