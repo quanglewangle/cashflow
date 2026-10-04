@@ -521,6 +521,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.cardIcon.setImageDrawable(dcp);
             ivh.itemView.setOnClickListener(onCardPurchaseClick != null
                     ? v -> onCardPurchaseClick.onClick(purchase) : null);
+            Util.applyHighlight(ivh.itemView, ivh.defaultBackground, purchase.description, "expense");
             return;
         }
 
@@ -553,6 +554,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             paidByCard = Util.isChargedToCard(item.creditCardId, item.name, creditCards);
             String itemType = occurrenceEntry != null ? occurrenceEntry.itemType : item.itemType;
             ivh.amount.setTextColor(Util.colorForAmount(ctx, itemType, paidByCard));
+            Util.applyHighlight(ivh.itemView, ivh.defaultBackground, item.name, itemType);
             boolean hasCard = item.creditCardId != null;
             if (hasCard) {
                 ivh.cardIcon.setVisibility(View.VISIBLE);
@@ -581,6 +583,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
             ivh.amount.setText(!Double.isNaN(amount)
                     ? String.format(Locale.UK, "£%.2f", amount) : "—");
             ivh.amount.setTextColor(Util.colorForAmount(ctx, entry.itemType, false));
+            Util.applyHighlight(ivh.itemView, ivh.defaultBackground, entry.name, entry.itemType);
             ivh.cardIcon.setVisibility(View.GONE);
             ivh.itemView.setOnClickListener(onEntryClick != null
                     ? v -> onEntryClick.onClick(entry) : null);
@@ -695,8 +698,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     static class ItemViewHolder extends RecyclerView.ViewHolder {
         TextView dueDay, name, subtitle, amount, runningBalance;
         android.widget.ImageView cardIcon;
+        final android.graphics.drawable.Drawable defaultBackground;
         ItemViewHolder(View itemView) {
             super(itemView);
+            defaultBackground = itemView.getBackground();
             dueDay = itemView.findViewById(R.id.dueDay);
             name = itemView.findViewById(R.id.name);
             subtitle = itemView.findViewById(R.id.subtitle);

@@ -13,4 +13,6 @@
     <!-- income/expense are the type-based colors used everywhere an amount is shown -->
     <color name="income">#FF1565C0</color>
     <color name="expense">#FFC62828</color>
+    <color name="highlightFlagged">#FFFFEBEE</color>
+    <color name="highlightSavings">#FFE8F5E9</color>
 </resources>

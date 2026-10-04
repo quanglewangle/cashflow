@@ -82,6 +82,26 @@ class Util {
         return colorForItemType(context, itemType);
     }
 
+    /** Row background highlight: pale red for anything whose name ends in "!" (the
+     *  user's own flag for "watch this"), pale green for a transfer to savings,
+     *  else 0 for the row's normal background. */
+    static int highlightColor(android.content.Context context, String name, String itemType) {
+        if (name != null && name.trim().endsWith("!"))
+            return androidx.core.content.ContextCompat.getColor(context, R.color.highlightFlagged);
+        if ("savings".equals(itemType))
+            return androidx.core.content.ContextCompat.getColor(context, R.color.highlightSavings);
+        return 0;
+    }
+
+    /** Applies highlightColor to a row, restoring defaultBackground when there's none
+     *  (rows are recycled, so a highlight must always be cleared as well as set). */
+    static void applyHighlight(android.view.View row, android.graphics.drawable.Drawable defaultBackground,
+                               String name, String itemType) {
+        int color = highlightColor(row.getContext(), name, itemType);
+        if (color != 0) row.setBackgroundColor(color);
+        else row.setBackground(defaultBackground);
+    }
+
     /** A recurring item/entry has creditCardId set for two different reasons: most are an
      *  everyday expense charged to that card (doesn't touch cash yet), but the card's own
      *  statement payment is also linked to its card for reference even though paying it

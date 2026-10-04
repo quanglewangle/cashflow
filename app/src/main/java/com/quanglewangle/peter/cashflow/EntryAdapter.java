@@ -187,6 +187,7 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
                 ? String.format(Locale.UK, "%s (was £%.2f, −£%.2f/wk)", e.name, e.plannedAmount, e.decayPerWeek)
                 : e.name);
         vh.dueDay.setText(e.dueDay != null ? Util.ordinal(e.dueDay) : "—");
+        Util.applyHighlight(vh.itemView, vh.defaultBackground, e.name, e.itemType);
 
         boolean incurred = "incurred".equals(e.status);
         boolean isIncome = "income".equals(e.itemType);
@@ -248,9 +249,11 @@ public class EntryAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> 
         TextView dueDay, name, status, runningBalance;
         Button markIncurredButton;
         android.widget.ImageView cardIcon;
+        final android.graphics.drawable.Drawable defaultBackground;
 
         EntryViewHolder(View itemView) {
             super(itemView);
+            defaultBackground = itemView.getBackground();
             dueDay = itemView.findViewById(R.id.dueDay);
             name = itemView.findViewById(R.id.name);
             status = itemView.findViewById(R.id.status);
