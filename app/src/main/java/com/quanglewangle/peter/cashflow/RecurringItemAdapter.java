@@ -393,9 +393,10 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                 // unconditionally rather than dropping them).
                 return item.dueDay != null ? item.dueDay : 32;
             }
-            case "four_weekly": {
+            case "four_weekly":
+            case "weekly": {
                 if (item.anchorDate != null) {
-                    int[] days = Util.fourWeeklyDaysInMonth(item.anchorDate, year, month);
+                    int[] days = Util.cycleDaysInMonth(item.anchorDate, Util.cycleLengthDays(item.frequency), year, month);
                     return days.length > 0 ? days[0] : -1;
                 }
                 return item.dueDay != null ? item.dueDay : -1;
@@ -417,8 +418,8 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
     }
 
     private String effectiveDayLabel(RecurringItemEntity item) {
-        if ("four_weekly".equals(item.frequency) && item.anchorDate != null) {
-            int[] days = Util.fourWeeklyDaysInMonth(item.anchorDate, displayYear, displayMonth);
+        if (Util.cycleLengthDays(item.frequency) > 0 && item.anchorDate != null) {
+            int[] days = Util.cycleDaysInMonth(item.anchorDate, Util.cycleLengthDays(item.frequency), displayYear, displayMonth);
             if (days.length == 0) return "—";
             StringBuilder sb = new StringBuilder();
             for (int i = 0; i < days.length; i++) {
@@ -546,6 +547,7 @@ public class RecurringItemAdapter extends RecyclerView.Adapter<RecyclerView.View
                     ? (item.targetMonth != null ? monthName(item.targetMonth) : "annual")
                     : "last_working_day".equals(item.frequency) ? "last working day"
                     : "three_monthly".equals(item.frequency) ? "3 monthly"
+                    : "weekly".equals(item.frequency) ? "weekly"
                     : "";
             ivh.subtitle.setText(subtitle);
             double dispAmount = effectiveAmount(row);

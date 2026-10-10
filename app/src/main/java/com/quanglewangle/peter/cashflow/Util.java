@@ -131,6 +131,21 @@ class Util {
     /** Day-of-month numbers when a four_weekly item falls in (year, month).
      *  anchorDate is "YYYY-MM-DD". Returns empty array if no occurrence. */
     static int[] fourWeeklyDaysInMonth(String anchorDate, int year, int month) {
+        return cycleDaysInMonth(anchorDate, 28, year, month);
+    }
+
+    /** Step in days between occurrences of a fixed-cycle frequency, or 0 if
+     *  the frequency isn't one (four_weekly and weekly are). */
+    static int cycleLengthDays(String frequency) {
+        if ("four_weekly".equals(frequency)) return 28;
+        if ("weekly".equals(frequency)) return 7;
+        return 0;
+    }
+
+    /** Day-of-month numbers when an item recurring every stepDays days from
+     *  anchorDate ("YYYY-MM-DD") falls in (year, month). Returns empty array
+     *  if no occurrence. */
+    static int[] cycleDaysInMonth(String anchorDate, int stepDays, int year, int month) {
         if (anchorDate == null || anchorDate.length() < 10) return new int[0];
         try {
             String[] p = anchorDate.split("-");
@@ -146,12 +161,12 @@ class Util {
             monthEnd.add(Calendar.MONTH, 1);
 
             Calendar cur = (Calendar) anchor.clone();
-            while (cur.before(monthStart)) cur.add(Calendar.DAY_OF_MONTH, 28);
+            while (cur.before(monthStart)) cur.add(Calendar.DAY_OF_MONTH, stepDays);
 
             ArrayList<Integer> days = new ArrayList<>();
             while (cur.before(monthEnd)) {
                 days.add(cur.get(Calendar.DAY_OF_MONTH));
-                cur.add(Calendar.DAY_OF_MONTH, 28);
+                cur.add(Calendar.DAY_OF_MONTH, stepDays);
             }
             return days.stream().mapToInt(Integer::intValue).toArray();
         } catch (Exception e) {

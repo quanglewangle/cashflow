@@ -84,7 +84,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_marginTop="12dp"
-            android:text="Anchor date (monthly: start from; four_weekly: a known occurrence)" />
+            android:text="Anchor date (monthly: start from; four_weekly/weekly: a known occurrence)" />
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
