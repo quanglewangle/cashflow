@@ -107,16 +107,17 @@ public class CardsFragment extends Fragment {
                 list.setOrientation(android.widget.LinearLayout.VERTICAL);
                 list.setPadding(pad, pad / 2, pad, 0);
                 for (SavingsMonth m : months) {
-                    // Whole pounds: the month's interest and transfers on their
-                    // own indented lines, then its closing balance in bold.
+                    // Whole pounds: the month's name as a heading, then its
+                    // interest and transfers and closing balance indented beneath.
+                    list.addView(savingsRow(monthNames[m.periodMonth - 1], "", SavingsRowStyle.HEADING));
                     if (Math.round(m.interest) > 0)
-                        list.addView(savingsRow("Interest", String.format(Locale.UK, "£%,.0f", m.interest), false));
+                        list.addView(savingsRow("Interest", String.format(Locale.UK, "£%,.0f", m.interest), SavingsRowStyle.DETAIL));
                     if (m.deposits > 0)
-                        list.addView(savingsRow("In", String.format(Locale.UK, "+£%,.0f", m.deposits), false));
+                        list.addView(savingsRow("In", String.format(Locale.UK, "+£%,.0f", m.deposits), SavingsRowStyle.DETAIL));
                     if (m.withdrawals > 0)
-                        list.addView(savingsRow("Out", String.format(Locale.UK, "−£%,.0f", m.withdrawals), false));
-                    list.addView(savingsRow(monthNames[m.periodMonth - 1],
-                            String.format(Locale.UK, "£%,.0f", m.carriedForward), true));
+                        list.addView(savingsRow("Out", String.format(Locale.UK, "−£%,.0f", m.withdrawals), SavingsRowStyle.DETAIL));
+                    list.addView(savingsRow("Month end",
+                            String.format(Locale.UK, "£%,.0f", m.carriedForward), SavingsRowStyle.MONTH_END));
                 }
                 android.widget.ScrollView scroll = new android.widget.ScrollView(requireContext());
                 scroll.addView(list);
@@ -130,13 +131,19 @@ public class CardsFragment extends Fragment {
         });
     }
 
+    private enum SavingsRowStyle { HEADING, DETAIL, MONTH_END }
+
     /** One line of the savings projection: label left, figure right-aligned.
-     *  A month-end line is bold and unindented, and ends its month's group. */
-    private View savingsRow(String label, String amount, boolean monthEnd) {
+     *  A month's heading is bold and unindented; its detail lines and its
+     *  bold month-end line are indented beneath, and the month-end line ends
+     *  the group. */
+    private View savingsRow(String label, String amount, SavingsRowStyle style) {
         float density = getResources().getDisplayMetrics().density;
+        boolean heading = style == SavingsRowStyle.HEADING;
+        boolean monthEnd = style == SavingsRowStyle.MONTH_END;
         android.widget.LinearLayout row = new android.widget.LinearLayout(requireContext());
         row.setOrientation(android.widget.LinearLayout.HORIZONTAL);
-        row.setPadding(monthEnd ? 0 : (int) (16 * density), 0, 0, monthEnd ? (int) (14 * density) : 0);
+        row.setPadding(heading ? 0 : (int) (16 * density), 0, 0, monthEnd ? (int) (14 * density) : 0);
         android.widget.TextView left = new android.widget.TextView(requireContext());
         android.widget.TextView right = new android.widget.TextView(requireContext());
         left.setText(label);
@@ -144,7 +151,7 @@ public class CardsFragment extends Fragment {
         right.setGravity(android.view.Gravity.END);
         for (android.widget.TextView t : new android.widget.TextView[]{left, right}) {
             t.setTextSize(16);
-            if (monthEnd) t.setTypeface(null, android.graphics.Typeface.BOLD);
+            if (heading || monthEnd) t.setTypeface(null, android.graphics.Typeface.BOLD);
         }
         row.addView(left, new android.widget.LinearLayout.LayoutParams(0,
                 android.view.ViewGroup.LayoutParams.WRAP_CONTENT, 1));
