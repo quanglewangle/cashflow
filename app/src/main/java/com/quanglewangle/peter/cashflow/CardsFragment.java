@@ -763,7 +763,14 @@ public class CardsFragment extends Fragment {
         int pad = (int) (16 * getResources().getDisplayMetrics().density);
         layout.setPadding(pad * 2, pad, pad * 2, 0);
 
+        // Default to the most recent statement date (today or earlier): that's
+        // what a checkpoint is normally recorded from, and today's date would
+        // put a just-closed statement on the following month's bill.
         java.util.Calendar now = java.util.Calendar.getInstance();
+        if (now.get(java.util.Calendar.DAY_OF_MONTH) < Math.min(card.statementDay, now.getActualMaximum(java.util.Calendar.DAY_OF_MONTH))) {
+            now.add(java.util.Calendar.MONTH, -1);
+        }
+        now.set(java.util.Calendar.DAY_OF_MONTH, Math.min(card.statementDay, now.getActualMaximum(java.util.Calendar.DAY_OF_MONTH)));
 
         EditText inputYear = new EditText(getContext());
         inputYear.setHint("Year");
