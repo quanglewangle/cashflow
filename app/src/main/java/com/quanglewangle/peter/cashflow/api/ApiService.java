@@ -618,6 +618,8 @@ public class ApiService {
                     p.month = o.optInt("month", 1);
                     p.day = o.optInt("day", 1);
                     p.allowance = o.optDouble("allowance", 0);
+                    p.shopStartMonth = o.isNull("shop_start_month") ? null : o.optInt("shop_start_month");
+                    p.shopStartDay = o.isNull("shop_start_day") ? null : o.optInt("shop_start_day");
                     p.nextDate = o.optString("next_date");
                     p.spent = o.optDouble("spent", 0);
                     p.remaining = o.optDouble("remaining", 0);
@@ -637,6 +639,8 @@ public class ApiService {
         set(body, "month", p.month);
         set(body, "day", p.day);
         set(body, "allowance", p.allowance);
+        set(body, "shop_start_month", p.shopStartMonth != null ? p.shopStartMonth : JSONObject.NULL);
+        set(body, "shop_start_day", p.shopStartDay != null ? p.shopStartDay : JSONObject.NULL);
         return body;
     }
 

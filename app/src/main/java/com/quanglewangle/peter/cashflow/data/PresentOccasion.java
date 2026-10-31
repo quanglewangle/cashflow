@@ -11,6 +11,9 @@ public class PresentOccasion {
     public int month;  // 1-12
     public int day;
     public double allowance;
+    // Optional: when shopping for it starts each year (null = from the previous occasion).
+    public Integer shopStartMonth;
+    public Integer shopStartDay;
     // Server-computed for the next occurrence (on or after today).
     public String nextDate;  // "YYYY-MM-DD"
     public double spent;

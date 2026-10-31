@@ -77,7 +77,8 @@ public class PresentOccasionAdapter extends RecyclerView.Adapter<PresentOccasion
         if (p.overspent) status = String.format(Locale.UK, " · over by £%,.0f", p.spent - p.allowance);
         else if (p.spent > 0.005) status = String.format(Locale.UK, " · £%,.0f spent, £%,.0f left", p.spent, p.remaining);
         else status = " · nothing spent yet";
-        holder.dates.setText(dayMonth(p.day, p.month) + " on " + card + status);
+        String from = p.shopStartDay != null ? " (from " + dayMonth(p.shopStartDay, p.shopStartMonth) + ")" : "";
+        holder.dates.setText(dayMonth(p.day, p.month) + from + " on " + card + status);
         if (p.overspent) {
             holder.itemView.setBackgroundColor(holder.itemView.getContext().getColor(R.color.highlightFlagged));
         }

@@ -317,6 +317,7 @@ public class CardsFragment extends Fragment {
         android.widget.Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);
         EditText inputDate = formView.findViewById(R.id.inputDate);
         EditText inputAllowance = formView.findViewById(R.id.inputAllowance);
+        EditText inputShopStart = formView.findViewById(R.id.inputShopStart);
         android.widget.TextView spentText = formView.findViewById(R.id.spentText);
 
         List<String> cardNames = new ArrayList<>();
@@ -348,9 +349,31 @@ public class CardsFragment extends Fragment {
                     cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
                     cal.get(java.util.Calendar.DAY_OF_MONTH)).show();
         });
+        // Shopping start: same {day, month} tag; long-press clears it.
+        java.util.function.BiConsumer<Integer, Integer> setShopStart = (day, month) -> {
+            inputShopStart.setTag(day == null ? null : new int[]{day, month});
+            inputShopStart.setText(day == null ? "" : "Shopping starts " + PresentOccasionAdapter.dayMonth(day, month));
+        };
+        inputShopStart.setOnClickListener(v -> {
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            int[] current = (int[]) inputShopStart.getTag();
+            if (current != null) {
+                cal.set(java.util.Calendar.MONTH, current[1] - 1);
+                cal.set(java.util.Calendar.DAY_OF_MONTH, current[0]);
+            }
+            new android.app.DatePickerDialog(requireContext(), (picker, y, m, d) -> setShopStart.accept(d, m + 1),
+                    cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
+                    cal.get(java.util.Calendar.DAY_OF_MONTH)).show();
+        });
+        inputShopStart.setOnLongClickListener(v -> {
+            setShopStart.accept(null, null);
+            Toast.makeText(getContext(), "Shopping start cleared", Toast.LENGTH_SHORT).show();
+            return true;
+        });
         if (existing != null) {
             inputName.setText(existing.name);
             setDate.accept(existing.day, existing.month);
+            if (existing.shopStartDay != null) setShopStart.accept(existing.shopStartDay, existing.shopStartMonth);
             inputAllowance.setText(String.format(Locale.UK, "%.2f", existing.allowance));
             spentText.setText(String.format(Locale.UK, "£%,.2f spent toward %s",
                     existing.spent, existing.nextDate));
@@ -374,6 +397,9 @@ public class CardsFragment extends Fragment {
                     p.day = date[0];
                     p.month = date[1];
                     p.allowance = allowance;
+                    int[] shop = (int[]) inputShopStart.getTag();
+                    p.shopStartDay = shop != null ? shop[0] : null;
+                    p.shopStartMonth = shop != null ? shop[1] : null;
                     repo.savePresentOccasion(p, this::loadAll, this::showError);
                 });
         if (existing != null) {
