@@ -22,6 +22,7 @@ import com.quanglewangle.peter.cashflow.data.CategoryEntity;
 import com.quanglewangle.peter.cashflow.data.CreditCardEntity;
 import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.Holiday;
+import com.quanglewangle.peter.cashflow.data.PresentOccasion;
 import com.quanglewangle.peter.cashflow.data.RecurringCardPurchase;
 import com.quanglewangle.peter.cashflow.data.Repository;
 import com.quanglewangle.peter.cashflow.data.SavingsAccount;
@@ -42,8 +43,10 @@ public class CardsFragment extends Fragment {
     private CreditCardAdapter adapter;
     private SavingsAccountAdapter savingsAdapter;
     private HolidayAdapter holidayAdapter;
+    private PresentOccasionAdapter presentAdapter;
     private List<CreditCardEntity> cards = new ArrayList<>();
     private List<Holiday> holidays = new ArrayList<>();
+    private List<PresentOccasion> presents = new ArrayList<>();
     private Repository repo;
 
     @Nullable
@@ -69,7 +72,8 @@ public class CardsFragment extends Fragment {
         savingsAdapter = new SavingsAccountAdapter(new ArrayList<>(),
                 this::showSavingsProjectionDialog, this::showEditSavingsDialog);
         holidayAdapter = new HolidayAdapter(this::showEditHolidayDialog);
-        recyclerView.setAdapter(new ConcatAdapter(savingsAdapter, adapter, holidayAdapter));
+        presentAdapter = new PresentOccasionAdapter(this::showEditPresentDialog);
+        recyclerView.setAdapter(new ConcatAdapter(savingsAdapter, adapter, holidayAdapter, presentAdapter));
 
         view.findViewById(R.id.fabAdd).setOnClickListener(v -> showEditDialog(null));
         swipeRefresh.setOnRefreshListener(this::loadAll);
@@ -83,11 +87,16 @@ public class CardsFragment extends Fragment {
             adapter.setItems(cards);
             this.cards = cards;
             showHolidays();
+            showPresents();
             if (!fromCache) swipeRefresh.setRefreshing(false);
         });
         repo.getHolidays(new ApiService.Callback<List<Holiday>>() {
             @Override public void onSuccess(List<Holiday> result) { holidays = result; showHolidays(); }
             @Override public void onError(String error) { /* holiday rows just stay as they were */ }
+        });
+        repo.getPresentOccasions(new ApiService.Callback<List<PresentOccasion>>() {
+            @Override public void onSuccess(List<PresentOccasion> result) { presents = result; showPresents(); }
+            @Override public void onError(String error) { /* present rows just stay as they were */ }
         });
         repo.getSavingsAccounts(new ApiService.Callback<List<SavingsAccount>>() {
             @Override public void onSuccess(List<SavingsAccount> accounts) { savingsAdapter.setItems(accounts); }
@@ -283,6 +292,97 @@ public class CardsFragment extends Fragment {
                             .setMessage("Its buffer comes off the card bill.")
                             .setPositiveButton("Delete", (d2, w2) ->
                                     repo.deleteHoliday(existing.id, this::loadAll, this::showError))
+                            .setNegativeButton("Cancel", null)
+                            .show());
+        }
+        builder.show();
+    }
+
+    private void showPresents() {
+        Map<Long, String> names = new HashMap<>();
+        for (CreditCardEntity c : cards) names.put(c.id, c.name);
+        presentAdapter.setItems(presents, names);
+    }
+
+    /** Adds (existing == null) or edits a present occasion: a yearly allowance on
+     *  a card that "Presents" purchases count against; the server holds back
+     *  what's left of it on that card's bills in the run-up. */
+    private void showEditPresentDialog(@Nullable PresentOccasion existing) {
+        if (cards.isEmpty()) {
+            Toast.makeText(getContext(), "Add a card first", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        View formView = LayoutInflater.from(getContext()).inflate(R.layout.dialog_edit_present_occasion, null);
+        EditText inputName = formView.findViewById(R.id.inputName);
+        android.widget.Spinner spinnerCard = formView.findViewById(R.id.spinnerCard);
+        EditText inputDate = formView.findViewById(R.id.inputDate);
+        EditText inputAllowance = formView.findViewById(R.id.inputAllowance);
+        android.widget.TextView spentText = formView.findViewById(R.id.spentText);
+
+        List<String> cardNames = new ArrayList<>();
+        int selected = 0;
+        for (int i = 0; i < cards.size(); i++) {
+            CreditCardEntity c = cards.get(i);
+            cardNames.add(c.name);
+            if (existing != null ? c.id == existing.creditCardId : c.name.equalsIgnoreCase("Visacard")) selected = i;
+        }
+        android.widget.ArrayAdapter<String> cardAdapter = new android.widget.ArrayAdapter<>(
+                requireContext(), android.R.layout.simple_spinner_item, cardNames);
+        cardAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinnerCard.setAdapter(cardAdapter);
+        spinnerCard.setSelection(selected);
+
+        // The day and month are held as {day, month} in the field's tag; the year is ignored.
+        java.util.function.BiConsumer<Integer, Integer> setDate = (day, month) -> {
+            inputDate.setTag(new int[]{day, month});
+            inputDate.setText(PresentOccasionAdapter.dayMonth(day, month) + " every year");
+        };
+        inputDate.setOnClickListener(v -> {
+            java.util.Calendar cal = java.util.Calendar.getInstance();
+            int[] current = (int[]) inputDate.getTag();
+            if (current != null) {
+                cal.set(java.util.Calendar.MONTH, current[1] - 1);
+                cal.set(java.util.Calendar.DAY_OF_MONTH, current[0]);
+            }
+            new android.app.DatePickerDialog(requireContext(), (picker, y, m, d) -> setDate.accept(d, m + 1),
+                    cal.get(java.util.Calendar.YEAR), cal.get(java.util.Calendar.MONTH),
+                    cal.get(java.util.Calendar.DAY_OF_MONTH)).show();
+        });
+        if (existing != null) {
+            inputName.setText(existing.name);
+            setDate.accept(existing.day, existing.month);
+            inputAllowance.setText(String.format(Locale.UK, "%.2f", existing.allowance));
+            spentText.setText(String.format(Locale.UK, "£%,.2f spent toward %s",
+                    existing.spent, existing.nextDate));
+        }
+
+        AlertDialog.Builder builder = new AlertDialog.Builder(requireContext())
+                .setTitle(existing == null ? "Add present occasion" : "Edit present occasion")
+                .setView(formView)
+                .setNegativeButton("Cancel", null)
+                .setPositiveButton("Save", (dialog, which) -> {
+                    String name = inputName.getText().toString().trim();
+                    int[] date = (int[]) inputDate.getTag();
+                    Double allowance = parseDoubleOrNull(inputAllowance.getText().toString());
+                    if (name.isEmpty() || date == null || allowance == null || allowance <= 0) {
+                        Toast.makeText(getContext(), "Name, date and an allowance are required", Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                    PresentOccasion p = existing != null ? existing : new PresentOccasion();
+                    p.name = name;
+                    p.creditCardId = cards.get(spinnerCard.getSelectedItemPosition()).id;
+                    p.day = date[0];
+                    p.month = date[1];
+                    p.allowance = allowance;
+                    repo.savePresentOccasion(p, this::loadAll, this::showError);
+                });
+        if (existing != null) {
+            builder.setNeutralButton("Delete", (dialog, which) ->
+                    new AlertDialog.Builder(requireContext())
+                            .setTitle("Delete " + existing.name + "?")
+                            .setMessage("What it holds back comes off the card bills.")
+                            .setPositiveButton("Delete", (d2, w2) ->
+                                    repo.deletePresentOccasion(existing.id, this::loadAll, this::showError))
                             .setNegativeButton("Cancel", null)
                             .show());
         }

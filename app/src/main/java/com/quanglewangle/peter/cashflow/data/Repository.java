@@ -388,6 +388,30 @@ public class Repository {
         });
     }
 
+    public void getPresentOccasions(ApiService.Callback<List<PresentOccasion>> callback) {
+        api.getPresentOccasions(new ApiService.Callback<List<PresentOccasion>>() {
+            @Override public void onSuccess(List<PresentOccasion> result) { main.post(() -> callback.onSuccess(result)); }
+            @Override public void onError(String error) { main.post(() -> callback.onError(error)); }
+        });
+    }
+
+    /** Adds the occasion if it has no id yet, otherwise updates it. */
+    public void savePresentOccasion(PresentOccasion occasion, Runnable onDone, ErrorCallback onError) {
+        ApiService.Callback<Void> cb = new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        };
+        if (occasion.id == 0) api.addPresentOccasion(occasion, cb);
+        else api.updatePresentOccasion(occasion, cb);
+    }
+
+    public void deletePresentOccasion(long id, Runnable onDone, ErrorCallback onError) {
+        api.deletePresentOccasion(id, new ApiService.Callback<Void>() {
+            @Override public void onSuccess(Void v) { main.post(onDone); }
+            @Override public void onError(String error) { main.post(() -> onError.onError(error)); }
+        });
+    }
+
     public void getSavingsProjection(long accountId, int months, ApiService.Callback<List<SavingsMonth>> callback) {
         api.getSavingsProjection(accountId, months, new ApiService.Callback<List<SavingsMonth>>() {
             @Override public void onSuccess(List<SavingsMonth> result) { main.post(() -> callback.onSuccess(result)); }

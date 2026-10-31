@@ -11,6 +11,7 @@ import com.quanglewangle.peter.cashflow.data.EntryEntity;
 import com.quanglewangle.peter.cashflow.data.ForecastSummary;
 import com.quanglewangle.peter.cashflow.data.RecurringItemEntity;
 import com.quanglewangle.peter.cashflow.data.Holiday;
+import com.quanglewangle.peter.cashflow.data.PresentOccasion;
 import com.quanglewangle.peter.cashflow.data.SavingsAccount;
 import com.quanglewangle.peter.cashflow.data.SavingsMonth;
 
@@ -598,6 +599,59 @@ public class ApiService {
 
     public void deleteHoliday(long id, Callback<Void> callback) {
         Request request = authed(new Request.Builder().url(BASE_URL + "holidays/" + id).delete()).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    // ---- present occasions ----
+
+    public void getPresentOccasions(Callback<List<PresentOccasion>> callback) {
+        Request request = new Request.Builder().url(BASE_URL + "present-occasions").build();
+        enqueueArray(request, new Callback<JSONArray>() {
+            @Override public void onSuccess(JSONArray arr) {
+                List<PresentOccasion> out = new ArrayList<>();
+                for (int i = 0; i < arr.length(); i++) {
+                    JSONObject o = arr.optJSONObject(i);
+                    PresentOccasion p = new PresentOccasion();
+                    p.id = o.optLong("id");
+                    p.creditCardId = o.optLong("credit_card_id");
+                    p.name = o.optString("name");
+                    p.month = o.optInt("month", 1);
+                    p.day = o.optInt("day", 1);
+                    p.allowance = o.optDouble("allowance", 0);
+                    p.nextDate = o.optString("next_date");
+                    p.spent = o.optDouble("spent", 0);
+                    p.remaining = o.optDouble("remaining", 0);
+                    p.overspent = o.optBoolean("overspent", false);
+                    out.add(p);
+                }
+                callback.onSuccess(out);
+            }
+            @Override public void onError(String error) { callback.onError(error); }
+        });
+    }
+
+    private JSONObject presentOccasionBody(PresentOccasion p) {
+        JSONObject body = new JSONObject();
+        set(body, "credit_card_id", p.creditCardId);
+        set(body, "name", p.name);
+        set(body, "month", p.month);
+        set(body, "day", p.day);
+        set(body, "allowance", p.allowance);
+        return body;
+    }
+
+    public void addPresentOccasion(PresentOccasion p, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "present-occasions").post(jsonBody(presentOccasionBody(p)))).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    public void updatePresentOccasion(PresentOccasion p, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "present-occasions/" + p.id).put(jsonBody(presentOccasionBody(p)))).build();
+        enqueue(request, voidCallback(callback));
+    }
+
+    public void deletePresentOccasion(long id, Callback<Void> callback) {
+        Request request = authed(new Request.Builder().url(BASE_URL + "present-occasions/" + id).delete()).build();
         enqueue(request, voidCallback(callback));
     }
 
