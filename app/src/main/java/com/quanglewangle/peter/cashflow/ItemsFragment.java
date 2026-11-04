@@ -396,9 +396,13 @@ public class ItemsFragment extends Fragment {
                 }
                 addRow(container, "Total", String.format(Locale.UK, "£%.2f", b.total), true);
 
+                // Long breakdowns overflow the dialog; scroll so the total and buttons stay reachable.
+                android.widget.ScrollView scroll = new android.widget.ScrollView(requireContext());
+                scroll.addView(container);
+
                 androidx.appcompat.app.AlertDialog.Builder builder = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
                         .setTitle(item.name + " — how this was calculated")
-                        .setView(container)
+                        .setView(scroll)
                         .setPositiveButton("Close", null);
                 if (b.entryId != null) {
                     builder.setNeutralButton("Edit this month", (d, w) ->
